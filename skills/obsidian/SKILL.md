@@ -79,3 +79,37 @@ Delete
 - `obsidian-cli delete "path/note"`
 
 Prefer direct edits when appropriate: open the `.md` file and change it; Obsidian will pick it up.
+
+## Second Brain Protocol (Usage Guide)
+
+### Directory Standard (PARA)
+- `00_Inbox/`: New/Unsorted items.
+- `10_Journal/Daily/`: Daily notes `YYYY-MM-DD.md`.
+- `10_Journal/Interactions/`: System logs.
+- `20_Projects/`: Active goals.
+
+### Common Workflows
+
+**1. Create Daily Note**
+Check if exists (`ls 10_Journal/Daily/`). If not, create:
+```bash
+# Verify path first!
+mkdir -p "10_Journal/Daily"
+echo "# Daily Note: $(date +%F)" > "10_Journal/Daily/$(date +%F).md"
+```
+
+**2. Log Interaction**
+Save important chats to `10_Journal/Interactions/`:
+```bash
+mkdir -p "10_Journal/Interactions"
+# Format: YYYY-MM-DD_HHMM_Title.md
+echo "..." > "10_Journal/Interactions/$(date +%F_%H%M)_Subject.md"
+```
+
+**3. Search Context**
+Before searching web, search brain:
+```bash
+obsidian-cli search "keywords"
+# or grep if direct access
+grep -r "keywords" .
+```

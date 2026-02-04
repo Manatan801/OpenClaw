@@ -1,6 +1,17 @@
+version: '3.8'
+
 services:
   openclaw-gateway:
+    # 【追加】ここが重要！外に取りに行かず、ここで作ります
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: ${OPENCLAW_IMAGE:-openclaw:local}
+    
+    # 【追加】設定ファイルを明示的に読み込ませます
+    env_file:
+      - .env
+
     environment:
       HOME: /home/node
       TERM: xterm-256color
@@ -9,26 +20,29 @@ services:
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
     volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - ${OPENCLAW_CONFIG_DIR:-./config}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR:-./workspace}:/home/node/.openclaw/workspace
     ports:
-      - "${OPENCLAW_GATEWAY_PORT:-18789}:18789"
-      - "${OPENCLAW_BRIDGE_PORT:-18790}:18790"
+      # 【セキュリティ】ローカルホストのみにバインド（外部からのアクセスを遮断）
+      - "127.0.0.1:${OPENCLAW_GATEWAY_PORT:-18789}:18789"
+      - "127.0.0.1:${OPENCLAW_BRIDGE_PORT:-18790}:18790"
     init: true
     restart: unless-stopped
-    command:
-      [
-        "node",
-        "dist/index.js",
-        "gateway",
-        "--bind",
-        "${OPENCLAW_GATEWAY_BIND:-lan}",
-        "--port",
-        "18789",
-      ]
+    # 【セキュリティ】Dockerセキュリティ強化オプション
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    command: ["node", "dist/index.js", "gateway"]
 
   openclaw-cli:
+    # Gatewayと同じイメージを使います（Gatewayがビルドしてくれます）
     image: ${OPENCLAW_IMAGE:-openclaw:local}
+    
+    # 【追加】こちらも設定ファイルを読み込ませます
+    env_file:
+      - .env
+
     environment:
       HOME: /home/node
       TERM: xterm-256color
@@ -38,9 +52,10 @@ services:
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
     volumes:
-      - ${OPENCLAW_CONFIG_DIR}:/home/node/.openclaw
-      - ${OPENCLAW_WORKSPACE_DIR}:/home/node/.openclaw/workspace
+      - ${OPENCLAW_CONFIG_DIR:-./config}:/home/node/.openclaw
+      - ${OPENCLAW_WORKSPACE_DIR:-./workspace}:/home/node/.openclaw/workspace
     stdin_open: true
     tty: true
     init: true
-    entrypoint: ["node", "dist/index.js"]
+    entrypoint: []
+    command: ["tail", "-f", "/dev/null"]

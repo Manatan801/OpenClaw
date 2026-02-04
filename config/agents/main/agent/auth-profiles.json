@@ -1,0 +1,10 @@
+{
+    "openai": {
+        "apiKey": "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",
+        "apiBaseUrl": "https://openrouter.ai/api/v1"
+    },
+    "anthropic": {
+        "apiKey": "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",
+        "apiBaseUrl": "https://openrouter.ai/api/v1"
+    }
+}
