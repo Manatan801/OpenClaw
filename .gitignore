@@ -72,3 +72,14 @@ USER.md
 # local tooling
 .serena/
 .env.save
+config/agents/main/agent/auth-profiles.json
+
+# Specialized Security Exclusions
+config/**/*.save
+config/**/*.bak
+**/*.log
+**/*.tmp
+.obsidian/workspace
+
+config/oauth
+config/cache

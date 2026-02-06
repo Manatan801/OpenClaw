@@ -10,7 +10,7 @@
       "accountId": "default"
     },
     "sessionId": "05c2e598-13fc-45ce-930e-e34d201bb160",
-    "updatedAt": 1770209554345,
+    "updatedAt": 1770382092664,
     "deliveryContext": {
       "channel": "telegram",
       "to": "telegram:8409691103",
@@ -29,15 +29,15 @@
       "resolvedSkills": [],
       "version": 0
     },
-    "inputTokens": 34991,
-    "outputTokens": 889,
-    "totalTokens": 34991,
+    "inputTokens": 36427,
+    "outputTokens": 768,
+    "totalTokens": 36427,
     "modelProvider": "openrouter",
     "model": "deepseek/deepseek-r1",
     "contextTokens": 64000,
     "systemPromptReport": {
       "source": "run",
-      "generatedAt": 1770209506035,
+      "generatedAt": 1770382061139,
       "sessionId": "05c2e598-13fc-45ce-930e-e34d201bb160",
       "sessionKey": "agent:main:main",
       "provider": "openrouter",
@@ -49,8 +49,8 @@
         "sandboxed": false
       },
       "systemPrompt": {
-        "chars": 21966,
-        "projectContextChars": 13862,
+        "chars": 22115,
+        "projectContextChars": 14011,
         "nonProjectContextChars": 8104
       },
       "injectedWorkspaceFiles": [
@@ -66,8 +66,8 @@
           "name": "SOUL.md",
           "path": "/home/node/.openclaw/workspace/SOUL.md",
           "missing": false,
-          "rawChars": 1951,
-          "injectedChars": 1951,
+          "rawChars": 2100,
+          "injectedChars": 2100,
           "truncated": false
         },
         {
@@ -253,6 +253,9 @@
           }
         ]
       }
-    }
+    },
+    "compactionCount": 2,
+    "memoryFlushAt": 1770303814538,
+    "memoryFlushCompactionCount": 1
   }
 }

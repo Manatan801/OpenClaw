@@ -26,6 +26,7 @@ services:
       # 【セキュリティ】ローカルホストのみにバインド（外部からのアクセスを遮断）
       - "127.0.0.1:${OPENCLAW_GATEWAY_PORT:-18789}:18789"
       - "127.0.0.1:${OPENCLAW_BRIDGE_PORT:-18790}:18790"
+      - "127.0.0.1:18080:18080" # gcalcli認証用(8080回避)
     init: true
     restart: unless-stopped
     # 【セキュリティ】Dockerセキュリティ強化オプション
