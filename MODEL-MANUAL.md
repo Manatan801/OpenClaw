@@ -68,14 +68,16 @@ Select model number (or 'q' to quit):
 | 10 | `google/gemini-2.0-flash-001` | Google最新 |
 | 11 | `google/gemini-pro-1.5` | 高性能 |
 | 12 | `google/gemini-flash-1.5` | 高速 |
-| 13 | `deepseek/deepseek-chat` | コスパ最強 |
+| 13 | `deepseek/deepseek-chat` | DeepSeek V3 (コスパ最強) |
 | 14 | `deepseek/deepseek-r1` | 推論特化 |
-| 15 | `meta-llama/llama-3.3-70b-instruct` | オープンソース |
-| 16 | `meta-llama/llama-3.1-405b-instruct` | 最大規模OSS |
-| 17 | `mistralai/mistral-large` | 欧州製 |
-| 18 | `mistralai/mixtral-8x22b-instruct` | MoE構造 |
-| 19 | `qwen/qwen-2.5-72b-instruct` | 中国製、多言語 |
-| 20 | `cohere/command-r-plus` | RAG向け |
+| 15 | `deepseek/deepseek-v3.2` | 最新モデル (Preview) |
+| 16 | `meta-llama/llama-3.3-70b-instruct` | オープンソース |
+| 17 | `meta-llama/llama-3.1-405b-instruct` | 最大規模OSS |
+| 18 | `mistralai/mistral-large` | 欧州製 |
+| 19 | `mistralai/mixtral-8x22b-instruct` | MoE構造 |
+| 20 | `qwen/qwen-2.5-72b-instruct` | 中国製、多言語 |
+| 21 | `cohere/command-r-plus` | RAG向け |
+| 22 | `openai/o3-deep-research` | Deep Research (高コスト) |
 
 ---
 

@@ -21,12 +21,14 @@ MODELS=(
     "openrouter/google/gemini-flash-1.5"
     "openrouter/deepseek/deepseek-chat"
     "openrouter/deepseek/deepseek-r1"
+    "openrouter/deepseek/deepseek-v3.2"
     "openrouter/meta-llama/llama-3.3-70b-instruct"
     "openrouter/meta-llama/llama-3.1-405b-instruct"
     "openrouter/mistralai/mistral-large"
     "openrouter/mistralai/mixtral-8x22b-instruct"
     "openrouter/qwen/qwen-2.5-72b-instruct"
     "openrouter/cohere/command-r-plus"
+    "openrouter/openai/o3-deep-research"
 )
 
 show_menu() {

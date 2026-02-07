@@ -18,7 +18,7 @@
     "defaults": {
       "maxConcurrent": 4,
       "model": {
-        "primary": "openrouter/deepseek/deepseek-r1"
+        "primary": "openrouter/deepseek/deepseek-chat"
       },
       "subagents": {
         "maxConcurrent": 8
@@ -32,6 +32,17 @@
     "entries": {
       "telegram": {
         "enabled": true
+      }
+    }
+  },
+  "browser": {
+    "enabled": true
+  },
+  "tools": {
+    "web": {
+      "search": {
+        "enabled": true,
+        "provider": "perplexity"
       }
     }
   }

@@ -1,8 +1,10 @@
 {
-  "model": "openai/gpt-4o-mini",
+  "model": "openrouter/deepseek/deepseek-chat",
   "skills": [
     "google-calendar",
     "obsidian",
-    "weather"
+    "weather",
+    "browser",
+    "web_search"
   ]
 }

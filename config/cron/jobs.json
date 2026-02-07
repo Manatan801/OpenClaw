@@ -4,27 +4,117 @@
     {
       "id": "morning-briefing",
       "name": "モーニングブリーフィング",
-      "schedule": "0 6 * * *",
       "enabled": true,
-      "prompt": "今日のモーニングブリーフィングを送ってください。\n\n含める内容:\n1. 今日の天気\n2. 今日の予定（gcalcli agendaを使ってGoogle Calendarから取得）\n3. AI関連の最新ニュース3本（各150字程度で要約）\n\nTelegramで送信してください。",
-      "channel": "telegram",
-      "state": {}
+      "createdAtMs": 1738911600000,
+      "updatedAtMs": 1738911600000,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 6 * * *"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "今日のモーニングブリーフィングを送ってください。\n\n含める内容:\n1. 茨城県北茨城市の天気（午前と午後の天気、最高気温・最低気温）\n2. 今日の予定（gcalcli agendaを使ってGoogle Calendarから取得）\n3. AI関連の最新ニュース3本（各150字程度で要約）\n\nTelegramで送信してください。",
+        "channel": "telegram",
+        "deliver": true,
+        "bestEffortDeliver": true
+      },
+      "state": {
+        "nextRunAtMs": 1770530400000
+      }
+    },
+    {
+      "id": "noon-briefing",
+      "name": "昼のブリーフィング",
+      "enabled": true,
+      "createdAtMs": 1738911600000,
+      "updatedAtMs": 1738911600000,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 12 * * *"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "昼のブリーフィングを送ってください。\n\n含める内容:\n1. 今日の午後の予定（gcalcli agendaを使ってGoogle Calendarから取得）\n2. 最新APIサービス関連のニュース5本（各200字程度で要約）\n\nTelegramで送信してください。",
+        "channel": "telegram",
+        "deliver": true,
+        "bestEffortDeliver": true
+      },
+      "state": {
+        "nextRunAtMs": 1770465600000
+      }
+    },
+    {
+      "id": "night-briefing",
+      "name": "夜のブリーフィング",
+      "enabled": true,
+      "createdAtMs": 1738911600000,
+      "updatedAtMs": 1738911600000,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 21 * * *"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "夜のブリーフィングを送ってください。\n\n含める内容:\n1. 明日の天気（場所: 茨城県北茨城市。午前と午後の天気、最高気温・最低気温）\n2. 明日の予定（gcalcli agendaを使ってGoogle Calendarから取得）\n3. 最新のAIモデルに関するニュース3本（各200字程度で要約）\n\nTelegramで送信してください。",
+        "channel": "telegram",
+        "deliver": true,
+        "bestEffortDeliver": true
+      },
+      "state": {
+        "nextRunAtMs": 1770498000000
+      }
     },
     {
       "id": "weekly-health-check",
       "name": "週次システムヘルスチェック",
-      "schedule": "0 3 * * 1",
       "enabled": true,
-      "prompt": "OpenClawのシステムヘルスチェックを実行してください。openclaw-health-checkスキルを使用し、包括的な診断を行い、問題があれば報告してください。結果をTelegramで送信してください。",
-      "channel": "telegram"
+      "createdAtMs": 1738911600000,
+      "updatedAtMs": 1738911600000,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 3 * * 1"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "OpenClawのシステムヘルスチェックを実行してください。openclaw-health-checkスキルを使用し、包括的な診断を行い、問題があれば報告してください。結果をTelegramで送信してください。",
+        "channel": "telegram",
+        "deliver": true,
+        "bestEffortDeliver": true
+      },
+      "state": {
+        "nextRunAtMs": 1770606000000
+      }
     },
     {
       "id": "weekly-security-audit",
       "name": "週次セキュリティ監査",
-      "schedule": "0 4 * * 1",
       "enabled": true,
-      "prompt": "セキュリティ監査を実行してください。`openclaw security audit --deep` コマンドを実行し、結果を分析して問題があれば報告してください。結果をTelegramで送信してください。",
-      "channel": "telegram"
+      "createdAtMs": 1738911600000,
+      "updatedAtMs": 1738911600000,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 4 * * 1"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "セキュリティ監査を実行してください。`openclaw security audit --deep` コマンドを実行し、結果を分析して問題があれば報告してください。結果をTelegramで送信してください。",
+        "channel": "telegram",
+        "deliver": true,
+        "bestEffortDeliver": true
+      },
+      "state": {
+        "nextRunAtMs": 1770609600000
+      }
     }
   ]
 }
