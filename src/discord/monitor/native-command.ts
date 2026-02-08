@@ -194,6 +194,10 @@ function isDiscordUnknownInteraction(error: unknown): boolean {
   return false;
 }
 
+import { createSubsystemLogger } from "../../logging/subsystem.js";
+
+const log = createSubsystemLogger("discord/native");
+
 async function safeDiscordInteractionCall<T>(
   label: string,
   fn: () => Promise<T>,
@@ -202,7 +206,7 @@ async function safeDiscordInteractionCall<T>(
     return await fn();
   } catch (error) {
     if (isDiscordUnknownInteraction(error)) {
-      console.warn(`discord: ${label} skipped (interaction expired)`);
+      log.warn(`${label} skipped (interaction expired)`);
       return null;
     }
     throw error;
@@ -802,7 +806,7 @@ async function dispatchDiscordCommandInteraction(params: {
           });
         } catch (error) {
           if (isDiscordUnknownInteraction(error)) {
-            console.warn("discord: interaction reply skipped (interaction expired)");
+            log.warn("Interaction reply skipped (interaction expired)");
             return;
           }
           throw error;
@@ -810,7 +814,9 @@ async function dispatchDiscordCommandInteraction(params: {
         didReply = true;
       },
       onError: (err, info) => {
-        console.error(`discord slash ${info.kind} reply failed`, err);
+        log.error(`Slash ${info.kind} reply failed`, {
+          error: err instanceof Error ? err.message : String(err),
+        });
       },
     },
     replyOptions: {
