@@ -6,6 +6,7 @@ import type { LineInboundContext } from "./bot-message-context.js";
 import type { ResolvedLineAccount } from "./types.js";
 import { loadConfig } from "../config/config.js";
 import { logVerbose } from "../globals.js";
+import { createSubsystemLogger } from "../logging/subsystem.js";
 import { resolveLineAccount } from "./accounts.js";
 import { handleLineWebhookEvents } from "./bot-handlers.js";
 import { startLineWebhook } from "./webhook.js";
@@ -26,9 +27,10 @@ export interface LineBot {
 }
 
 export function createLineBot(opts: LineBotOptions): LineBot {
+  const log = createSubsystemLogger("line/bot");
   const runtime: RuntimeEnv = opts.runtime ?? {
-    log: console.log,
-    error: console.error,
+    log: (msg: string) => log.info(msg),
+    error: (msg: string) => log.error(msg),
     exit: (code: number): never => {
       throw new Error(`exit ${code}`);
     },

@@ -6,6 +6,9 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { OpenClawConfig } from "../config/config.js";
+import { createSubsystemLogger } from "../logging/subsystem.js";
+
+const log = createSubsystemLogger("llm/slug-generator");
 import {
   resolveDefaultAgentId,
   resolveAgentWorkspaceDir,
@@ -69,7 +72,7 @@ Reply with ONLY the slug, nothing else. Examples: "vendor-pitch", "api-design", 
 
     return null;
   } catch (err) {
-    console.error("[llm-slug-generator] Failed to generate slug:", err);
+    log.error("Failed to generate slug:", { error: err });
     return null;
   } finally {
     // Clean up temporary session file

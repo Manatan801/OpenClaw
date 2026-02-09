@@ -56,11 +56,15 @@ function ensureExperimentalWarningSuppressed(): boolean {
   });
 
   child.once("error", (error) => {
-    console.error(
-      "[openclaw] Failed to respawn CLI:",
-      error instanceof Error ? (error.stack ?? error.message) : error,
-    );
-    process.exit(1);
+    // Lazy load logger
+    void import("./logging/subsystem.js").then(({ createSubsystemLogger }) => {
+      const log = createSubsystemLogger("entry");
+      log.error(
+        "[openclaw] Failed to respawn CLI:",
+        error instanceof Error ? { error: error.stack ?? error.message } : { error },
+      );
+      process.exit(1);
+    });
   });
 
   // Parent must not continue running the CLI.
@@ -140,7 +144,9 @@ if (!ensureExperimentalWarningSuppressed()) {
   const parsed = parseCliProfileArgs(process.argv);
   if (!parsed.ok) {
     // Keep it simple; Commander will handle rich help/errors after we strip flags.
-    console.error(`[openclaw] ${parsed.error}`);
+    void import("./logging/subsystem.js").then(({ createSubsystemLogger }) => {
+      createSubsystemLogger("entry").error(`[openclaw] ${parsed.error}`);
+    });
     process.exit(2);
   }
 
@@ -150,13 +156,17 @@ if (!ensureExperimentalWarningSuppressed()) {
     process.argv = parsed.argv;
   }
 
-  import("./cli/run-main.js")
+  void import("./cli/run-main.js")
     .then(({ runCli }) => runCli(process.argv))
     .catch((error) => {
-      console.error(
-        "[openclaw] Failed to start CLI:",
-        error instanceof Error ? (error.stack ?? error.message) : error,
-      );
-      process.exitCode = 1;
+      // Lazy load logger to ensure environment is fully set up
+      void import("./logging/subsystem.js").then(({ createSubsystemLogger }) => {
+        const log = createSubsystemLogger("entry");
+        log.error(
+          "[openclaw] Failed to start CLI:",
+          error instanceof Error ? { error: error.stack ?? error.message } : { error },
+        );
+        process.exitCode = 1;
+      });
     });
 }

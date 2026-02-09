@@ -624,6 +624,8 @@ export function buildRuntimeLine(
 ): string {
   return `Runtime: ${[
     runtimeInfo?.agentId ? `agent=${runtimeInfo.agentId}` : "",
+    runtimeInfo?.chatId ? `chat_id=${runtimeInfo.chatId}` : "",
+    runtimeInfo?.userId ? `user_id=${runtimeInfo.userId}` : "",
     runtimeInfo?.host ? `host=${runtimeInfo.host}` : "",
     runtimeInfo?.repoRoot ? `repo=${runtimeInfo.repoRoot}` : "",
     runtimeInfo?.os

@@ -55,7 +55,7 @@ const handlers = new Map<string, InternalHookHandler[]>();
  * ```ts
  * // Listen to all command events
  * registerInternalHook('command', async (event) => {
- *   console.log('Command:', event.action);
+ *   console.log('Command:', event.action); // console-ok
  * });
  *
  * // Listen only to /new commands
@@ -120,6 +120,10 @@ export function getRegisteredEventKeys(): string[] {
  *
  * @param event - The event to trigger
  */
+import { createSubsystemLogger } from "../logging/subsystem.js";
+
+const log = createSubsystemLogger("hooks/internal");
+
 export async function triggerInternalHook(event: InternalHookEvent): Promise<void> {
   const typeHandlers = handlers.get(event.type) ?? [];
   const specificHandlers = handlers.get(`${event.type}:${event.action}`) ?? [];
@@ -134,10 +138,9 @@ export async function triggerInternalHook(event: InternalHookEvent): Promise<voi
     try {
       await handler(event);
     } catch (err) {
-      console.error(
-        `Hook error [${event.type}:${event.action}]:`,
-        err instanceof Error ? err.message : String(err),
-      );
+      log.error(`Hook error [${event.type}:${event.action}]:`, {
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 }

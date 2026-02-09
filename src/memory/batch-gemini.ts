@@ -1,4 +1,4 @@
-import type { GeminiEmbeddingClient } from "./embeddings-gemini.js";
+import type { GeminiEmbeddingClient } from "./embeddings.js";
 import { isTruthyEnvValue } from "../infra/env.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { hashText } from "./internal.js";

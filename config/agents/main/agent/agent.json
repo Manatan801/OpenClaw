@@ -5,6 +5,9 @@
     "obsidian",
     "weather",
     "browser",
-    "web_search"
+    "web_search",
+    "discord-webhook",
+    "research-report",
+    "openclaw-health-check"
   ]
 }

@@ -59,6 +59,9 @@ export async function syncMemoryFiles(params: {
         params.progress.report({
           completed: params.progress.completed,
           total: params.progress.total,
+          label: params.batchEnabled
+            ? `Indexing memory files (batch)... (${params.progress.completed}/${params.progress.total})`
+            : `Indexing memory files… (${params.progress.completed}/${params.progress.total})`,
         });
       }
       return;
@@ -69,6 +72,9 @@ export async function syncMemoryFiles(params: {
       params.progress.report({
         completed: params.progress.completed,
         total: params.progress.total,
+        label: params.batchEnabled
+          ? `Indexing memory files (batch)... (${params.progress.completed}/${params.progress.total})`
+          : `Indexing memory files… (${params.progress.completed}/${params.progress.total})`,
       });
     }
   });

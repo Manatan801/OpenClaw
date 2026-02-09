@@ -10,7 +10,7 @@
       "accountId": "default"
     },
     "sessionId": "05c2e598-13fc-45ce-930e-e34d201bb160",
-    "updatedAt": 1770382092664,
+    "updatedAt": 1770618641707,
     "deliveryContext": {
       "channel": "telegram",
       "to": "telegram:8409691103",
@@ -29,19 +29,19 @@
       "resolvedSkills": [],
       "version": 0
     },
-    "inputTokens": 36427,
-    "outputTokens": 768,
-    "totalTokens": 36427,
+    "inputTokens": 20655,
+    "outputTokens": 109,
+    "totalTokens": 20655,
     "modelProvider": "openrouter",
-    "model": "deepseek/deepseek-r1",
-    "contextTokens": 64000,
+    "model": "deepseek/deepseek-chat",
+    "contextTokens": 163840,
     "systemPromptReport": {
       "source": "run",
-      "generatedAt": 1770382061139,
+      "generatedAt": 1770618633071,
       "sessionId": "05c2e598-13fc-45ce-930e-e34d201bb160",
       "sessionKey": "agent:main:main",
       "provider": "openrouter",
-      "model": "deepseek/deepseek-r1",
+      "model": "deepseek/deepseek-chat",
       "workspaceDir": "/home/node/.openclaw/workspace",
       "bootstrapMaxChars": 20000,
       "sandbox": {
@@ -49,9 +49,9 @@
         "sandboxed": false
       },
       "systemPrompt": {
-        "chars": 22115,
-        "projectContextChars": 14011,
-        "nonProjectContextChars": 8104
+        "chars": 25046,
+        "projectContextChars": 16931,
+        "nonProjectContextChars": 8115
       },
       "injectedWorkspaceFiles": [
         {
@@ -66,8 +66,8 @@
           "name": "SOUL.md",
           "path": "/home/node/.openclaw/workspace/SOUL.md",
           "missing": false,
-          "rawChars": 2100,
-          "injectedChars": 2100,
+          "rawChars": 5020,
+          "injectedChars": 5020,
           "truncated": false
         },
         {
@@ -229,7 +229,7 @@
           },
           {
             "name": "web_search",
-            "summaryChars": 175,
+            "summaryChars": 138,
             "schemaChars": 733,
             "propertiesCount": 6
           },
@@ -254,8 +254,90 @@
         ]
       }
     },
-    "compactionCount": 2,
-    "memoryFlushAt": 1770303814538,
-    "memoryFlushCompactionCount": 1
+    "compactionCount": 6,
+    "memoryFlushAt": 1770415272865,
+    "memoryFlushCompactionCount": 4
+  },
+  "agent:main:cron:noon-briefing": {
+    "sessionId": "5ed55c6e-047c-4058-89e0-484eaa99de30",
+    "updatedAt": 1770606000014,
+    "systemSent": true,
+    "model": "deepseek/deepseek-chat",
+    "contextTokens": 163840,
+    "skillsSnapshot": {
+      "prompt": "",
+      "skills": [],
+      "resolvedSkills": [],
+      "version": 0
+    },
+    "modelProvider": "openrouter",
+    "inputTokens": 13676,
+    "outputTokens": 269,
+    "totalTokens": 17964
+  },
+  "agent:main:cron:night-briefing": {
+    "sessionId": "ae1e8d7e-8709-4d61-b2c2-63c934a0c8f2",
+    "updatedAt": 1770638400027,
+    "systemSent": true,
+    "model": "deepseek/deepseek-chat",
+    "contextTokens": 163840,
+    "skillsSnapshot": {
+      "prompt": "",
+      "skills": [],
+      "resolvedSkills": [],
+      "version": 0
+    },
+    "modelProvider": "openrouter"
+  },
+  "agent:main:cron:weekly-health-check": {
+    "sessionId": "4cd3f796-09f4-4dac-8f5e-0d05faf181b3",
+    "updatedAt": 1770573600028,
+    "systemSent": true,
+    "model": "deepseek/deepseek-chat",
+    "contextTokens": 163840,
+    "skillsSnapshot": {
+      "prompt": "",
+      "skills": [],
+      "resolvedSkills": [],
+      "version": 0
+    },
+    "modelProvider": "openrouter",
+    "inputTokens": 11440,
+    "outputTokens": 180,
+    "totalTokens": 15728
+  },
+  "agent:main:cron:weekly-security-audit": {
+    "sessionId": "8981b72c-c40b-44d5-a868-e02dc7985248",
+    "updatedAt": 1770577200014,
+    "systemSent": true,
+    "model": "deepseek/deepseek-chat",
+    "contextTokens": 163840,
+    "skillsSnapshot": {
+      "prompt": "",
+      "skills": [],
+      "resolvedSkills": [],
+      "version": 0
+    },
+    "modelProvider": "openrouter",
+    "inputTokens": 11442,
+    "outputTokens": 184,
+    "totalTokens": 15730
+  },
+  "agent:main:cron:morning-briefing": {
+    "sessionId": "ba63f7ad-ff58-4876-85b1-7f793c9d65a8",
+    "updatedAt": 1770584400017,
+    "systemSent": true,
+    "model": "deepseek/deepseek-chat",
+    "contextTokens": 163840,
+    "skillsSnapshot": {
+      "prompt": "",
+      "skills": [],
+      "resolvedSkills": [],
+      "version": 0
+    },
+    "modelProvider": "openrouter",
+    "inputTokens": 14721,
+    "outputTokens": 295,
+    "totalTokens": 19009
   }
 }

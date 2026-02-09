@@ -4,48 +4,177 @@
     {
       "id": "morning-briefing",
       "name": "モーニングブリーフィング",
-      "schedule": "0 6 * * *",
       "enabled": true,
-      "prompt": "今日のモーニングブリーフィングを送ってください。\n\n含める内容:\n1. 今日の天気\n2. 今日の予定（gcalcli agendaを使ってGoogle Calendarから取得）\n3. AI関連の最新ニュース3本（各150字程度で要約）\n\nTelegramで送信してください。",
-      "channel": "telegram",
-      "state": {}
+      "createdAtMs": 1738911600000,
+      "updatedAtMs": 1770584400000,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 6 * * *"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "今日のモーニングブリーフィングを送ってください。\n\n含める内容:\n1. 茨城県北茨城市の天気（午前と午後の天気、最高気温・最低気温）\n2. 今日の予定（gcalcli agendaを使ってGoogle Calendarから取得）\n3. AI関連の最新ニュース3本（各150字程度で要約）\n\nTelegramで送信してください。",
+        "channel": "telegram",
+        "deliver": true,
+        "bestEffortDeliver": true
+      },
+      "state": {
+        "nextRunAtMs": 1770670800000,
+        "lastRunAtMs": 1770584400000,
+        "lastStatus": "ok",
+        "lastDurationMs": 96727
+      }
+    },
+    {
+      "id": "noon-briefing",
+      "name": "昼のブリーフィング",
+      "enabled": true,
+      "createdAtMs": 1738911600000,
+      "updatedAtMs": 1770606000000,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 12 * * *"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "昼のブリーフィングを送ってください。\n\n含める内容:\n1. 今日の午後の予定（gcalcli agendaを使ってGoogle Calendarから取得）\n2. 最新APIサービス関連のニュース5本（各200字程度で要約）\n\nTelegramで送信してください。",
+        "channel": "telegram",
+        "deliver": true,
+        "bestEffortDeliver": true
+      },
+      "state": {
+        "nextRunAtMs": 1770692400000,
+        "lastRunAtMs": 1770606000001,
+        "lastStatus": "ok",
+        "lastDurationMs": 88466
+      }
+    },
+    {
+      "id": "night-briefing",
+      "name": "夜のブリーフィング",
+      "enabled": true,
+      "createdAtMs": 1738911600000,
+      "updatedAtMs": 1770638400002,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 21 * * *"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "夜のブリーフィングを送ってください。\n\n含める内容:\n1. 明日の天気（場所: 茨城県北茨城市。午前と午後の天気、最高気温・最低気温）\n2. 明日の予定（gcalcli agendaを使ってGoogle Calendarから取得）\n3. 最新のAIモデルに関するニュース3本（各200字程度で要約）\n\nTelegramで送信してください。",
+        "channel": "telegram",
+        "deliver": true,
+        "bestEffortDeliver": true
+      },
+      "state": {
+        "nextRunAtMs": 1770724800000,
+        "lastRunAtMs": 1770638400002,
+        "lastStatus": "ok",
+        "lastDurationMs": 78594
+      }
     },
     {
       "id": "weekly-health-check",
       "name": "週次システムヘルスチェック",
-      "schedule": "0 3 * * 1",
       "enabled": true,
-      "prompt": "OpenClawのシステムヘルスチェックを実行してください。openclaw-health-checkスキルを使用し、包括的な診断を行い、問題があれば報告してください。結果をTelegramで送信してください。",
-      "channel": "telegram"
+      "createdAtMs": 1738911600000,
+      "updatedAtMs": 1770573600000,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 3 * * 1"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "OpenClawのシステムヘルスチェックを実行してください。openclaw-health-checkスキルを使用し、包括的な診断を行い、問題があれば報告してください。結果をTelegramで送信してください。",
+        "channel": "telegram",
+        "deliver": true,
+        "bestEffortDeliver": true
+      },
+      "state": {
+        "nextRunAtMs": 1771178400000,
+        "lastRunAtMs": 1770573600000,
+        "lastStatus": "ok",
+        "lastDurationMs": 12587
+      }
     },
     {
       "id": "weekly-security-audit",
       "name": "週次セキュリティ監査",
-      "schedule": "0 4 * * 1",
       "enabled": true,
-      "prompt": "セキュリティ監査を実行してください。`openclaw security audit --deep` コマンドを実行し、結果を分析して問題があれば報告してください。結果をTelegramで送信してください。",
-      "channel": "telegram"
-    },
-    {
-      "id": "d51c6b09-a404-45bf-80c4-572350b3e45f",
-      "agentId": "main",
-      "name": "朝ブリーフィング",
-      "enabled": true,
-      "createdAtMs": 1770303836719,
-      "updatedAtMs": 1770303836719,
+      "createdAtMs": 1738911600000,
+      "updatedAtMs": 1770577200001,
       "schedule": {
         "kind": "cron",
-        "expr": "0 7 * * *",
-        "tz": "Asia/Tokyo"
+        "expr": "0 4 * * 1"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "セキュリティ監査を実行してください。`openclaw security audit --deep` コマンドを実行し、結果を分析して問題があれば報告してください。結果をTelegramで送信してください。",
+        "channel": "telegram",
+        "deliver": true,
+        "bestEffortDeliver": true
+      },
+      "state": {
+        "nextRunAtMs": 1771182000000,
+        "lastRunAtMs": 1770577200001,
+        "lastStatus": "ok",
+        "lastDurationMs": 11938
+      }
+    },
+    {
+      "id": "f3414428-57d5-41c1-b7f9-352de7ee8537",
+      "agentId": "main",
+      "name": "night-briefing 夜のブリーフィング",
+      "createdAtMs": 1770498047070,
+      "updatedAtMs": 1770498047070,
+      "schedule": {
+        "kind": "at",
+        "atMs": 1730000000000
       },
       "sessionTarget": "isolated",
       "wakeMode": "next-heartbeat",
       "payload": {
         "kind": "agentTurn",
-        "message": "【朝ブリーフィング】天気・スケジュール・ニュース・健康リマインダーを生成してください。リソース使用量を明記し、PROTOCOL.md のチェックリストを厳守すること。"
+        "message": "1. 茨城県北茨城市の明日の天気（午前と午後の天気、最高気温・最低気温）を調べてください。\\n2. Google Calendarから明日の予定を取得してください（gcalcli agendaを使用）。\\n3. 最新のAIモデルに関するニュース3本を要約してください（各200字程度）。\\n\\n上記の内容をTelegramで送信してください。",
+        "model": "openrouter/deepseek/deepseek-chat",
+        "deliver": true,
+        "channel": "telegram"
+      },
+      "state": {}
+    },
+    {
+      "id": "5aa73a1b-4dcc-4953-8077-86270eeb58b2",
+      "agentId": "main",
+      "name": "night-briefing 夜のブリーフィング",
+      "enabled": true,
+      "createdAtMs": 1770638478609,
+      "updatedAtMs": 1770638478609,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 86400000,
+        "anchorMs": 1707508800000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "1. 茨城県北茨城市の明日の天気（午前と午後の天気、最高気温・最低気温）を調べてください。\\n2. gcalcli agendaを使ってGoogle Calendarから明日の予定を取得してください。\\n3. 最新のAIモデルに関するニュース3本を要約してください（各200字程度）。\\n\\nTelegramで送信してください。",
+        "model": "openrouter/deepseek/deepseek-chat",
+        "timeoutSeconds": 600,
+        "deliver": true
       },
       "state": {
-        "nextRunAtMs": 1770328800000
+        "nextRunAtMs": 1770667200000
       }
     }
   ]

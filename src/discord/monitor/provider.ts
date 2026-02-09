@@ -152,9 +152,10 @@ export async function monitorDiscordProvider(opts: MonitorDiscordOpts = {}) {
     );
   }
 
+  const log = createSubsystemLogger("discord/monitor");
   const runtime: RuntimeEnv = opts.runtime ?? {
-    log: console.log,
-    error: console.error,
+    log: (msg: string) => log.info(msg),
+    error: (msg: string) => log.error(msg),
     exit: (code: number): never => {
       throw new Error(`exit ${code}`);
     },

@@ -60,6 +60,9 @@ export async function syncSessionFiles(params: {
         params.progress.report({
           completed: params.progress.completed,
           total: params.progress.total,
+          label: params.batchEnabled
+            ? `Indexing session files (batch)... (${params.progress.completed}/${params.progress.total})`
+            : `Indexing session files… (${params.progress.completed}/${params.progress.total})`,
         });
       }
       return;
@@ -71,6 +74,9 @@ export async function syncSessionFiles(params: {
         params.progress.report({
           completed: params.progress.completed,
           total: params.progress.total,
+          label: params.batchEnabled
+            ? `Indexing session files (batch)... (${params.progress.completed}/${params.progress.total})`
+            : `Indexing session files… (${params.progress.completed}/${params.progress.total})`,
         });
       }
       return;
@@ -84,6 +90,9 @@ export async function syncSessionFiles(params: {
         params.progress.report({
           completed: params.progress.completed,
           total: params.progress.total,
+          label: params.batchEnabled
+            ? `Indexing session files (batch)... (${params.progress.completed}/${params.progress.total})`
+            : `Indexing session files… (${params.progress.completed}/${params.progress.total})`,
         });
       }
       return;
@@ -94,6 +103,9 @@ export async function syncSessionFiles(params: {
       params.progress.report({
         completed: params.progress.completed,
         total: params.progress.total,
+        label: params.batchEnabled
+          ? `Indexing session files (batch)... (${params.progress.completed}/${params.progress.total})`
+          : `Indexing session files… (${params.progress.completed}/${params.progress.total})`,
       });
     }
   });

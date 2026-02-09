@@ -1,0 +1,71 @@
+
+> openclaw@2026.2.1 check /root/openclaw
+> pnpm tsgo && pnpm lint && pnpm format
+
+
+> openclaw@2026.2.1 lint /root/openclaw
+> oxlint --type-aware
+
+
+  x eslint(no-unused-vars): Type 'MemoryChunk' is imported but never used.
+    ,-[src/memory/manager.ts:41:8]
+ 40 |   normalizeExtraMemoryPaths,
+ 41 |   type MemoryChunk,
+    :        ^^^^^|^^^^^
+    :             `-- 'MemoryChunk' is imported here
+ 42 |   type MemoryFileEntry,
+    `----
+  help: Consider removing this import.
+
+  x eslint(no-unused-vars): Identifier 'parseEmbedding' is imported but never used.
+    ,-[src/memory/manager.ts:43:3]
+ 42 |   type MemoryFileEntry,
+ 43 |   parseEmbedding,
+    :   ^^^^^^^|^^^^^^
+    :          `-- 'parseEmbedding' is imported here
+ 44 | } from "./internal.js";
+    `----
+  help: Consider removing this import.
+
+  x eslint(no-unused-vars): Identifier 'pruneEmbeddingCacheIfNeeded' is imported but never used.
+    ,-[src/memory/manager.ts:58:3]
+ 57 |   loadEmbeddingCache,
+ 58 |   pruneEmbeddingCacheIfNeeded,
+    :   ^^^^^^^^^^^^^|^^^^^^^^^^^^^
+    :                `-- 'pruneEmbeddingCacheIfNeeded' is imported here
+ 59 |   upsertEmbeddingCache,
+    `----
+  help: Consider removing this import.
+
+  x eslint(no-unused-vars): Identifier 'upsertEmbeddingCache' is imported but never used.
+    ,-[src/memory/manager.ts:59:3]
+ 58 |   pruneEmbeddingCacheIfNeeded,
+ 59 |   upsertEmbeddingCache,
+    :   ^^^^^^^^^^|^^^^^^^^^
+    :             `-- 'upsertEmbeddingCache' is imported here
+ 60 | } from "./manager-embedding-cache.js";
+    `----
+  help: Consider removing this import.
+
+  x eslint(no-unused-vars): Identifier 'resetSessionDelta' is imported but never used.
+    ,-[src/memory/manager.ts:64:3]
+ 63 |   processSessionDeltaBatch,
+ 64 |   resetSessionDelta,
+    :   ^^^^^^^^|^^^^^^^^
+    :           `-- 'resetSessionDelta' is imported here
+ 65 |   SESSION_DIRTY_DEBOUNCE_MS,
+    `----
+  help: Consider removing this import.
+
+  x typescript-eslint(no-unnecessary-template-expression): Template literal expression is unnecessary and can be simplified.
+     ,-[src/memory/manager-batch.ts:383:18]
+ 382 |                 `memory embeddings: ${params.provider} batch failed (${failure.count}/${BATCH_FAILURE_LIMIT}); ` +
+ 383 |                 `${failure.disabled ? "disabling batch; " : "keeping batch enabled; "}` +
+     :                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 384 |                 `falling back to non-batch`,
+     `----
+
+Found 0 warnings and 6 errors.
+Finished in 14.7s on 3093 files with 134 rules using 4 threads.
+ ELIFECYCLE  Command failed with exit code 1.
+ ELIFECYCLE  Command failed with exit code 1.

@@ -6,7 +6,7 @@
       "name": "モーニングブリーフィング",
       "enabled": true,
       "createdAtMs": 1738911600000,
-      "updatedAtMs": 1738911600000,
+      "updatedAtMs": 1770584400000,
       "schedule": {
         "kind": "cron",
         "expr": "0 6 * * *"
@@ -21,7 +21,10 @@
         "bestEffortDeliver": true
       },
       "state": {
-        "nextRunAtMs": 1770530400000
+        "nextRunAtMs": 1770670800000,
+        "lastRunAtMs": 1770584400000,
+        "lastStatus": "ok",
+        "lastDurationMs": 96727
       }
     },
     {
@@ -29,7 +32,7 @@
       "name": "昼のブリーフィング",
       "enabled": true,
       "createdAtMs": 1738911600000,
-      "updatedAtMs": 1738911600000,
+      "updatedAtMs": 1770606000000,
       "schedule": {
         "kind": "cron",
         "expr": "0 12 * * *"
@@ -44,7 +47,10 @@
         "bestEffortDeliver": true
       },
       "state": {
-        "nextRunAtMs": 1770465600000
+        "nextRunAtMs": 1770692400000,
+        "lastRunAtMs": 1770606000001,
+        "lastStatus": "ok",
+        "lastDurationMs": 88466
       }
     },
     {
@@ -52,7 +58,7 @@
       "name": "夜のブリーフィング",
       "enabled": true,
       "createdAtMs": 1738911600000,
-      "updatedAtMs": 1738911600000,
+      "updatedAtMs": 1770638400002,
       "schedule": {
         "kind": "cron",
         "expr": "0 21 * * *"
@@ -67,7 +73,10 @@
         "bestEffortDeliver": true
       },
       "state": {
-        "nextRunAtMs": 1770498000000
+        "nextRunAtMs": 1770724800000,
+        "lastRunAtMs": 1770638400002,
+        "lastStatus": "ok",
+        "lastDurationMs": 78594
       }
     },
     {
@@ -75,7 +84,7 @@
       "name": "週次システムヘルスチェック",
       "enabled": true,
       "createdAtMs": 1738911600000,
-      "updatedAtMs": 1738911600000,
+      "updatedAtMs": 1770573600000,
       "schedule": {
         "kind": "cron",
         "expr": "0 3 * * 1"
@@ -90,7 +99,10 @@
         "bestEffortDeliver": true
       },
       "state": {
-        "nextRunAtMs": 1770606000000
+        "nextRunAtMs": 1771178400000,
+        "lastRunAtMs": 1770573600000,
+        "lastStatus": "ok",
+        "lastDurationMs": 12587
       }
     },
     {
@@ -98,7 +110,7 @@
       "name": "週次セキュリティ監査",
       "enabled": true,
       "createdAtMs": 1738911600000,
-      "updatedAtMs": 1738911600000,
+      "updatedAtMs": 1770577200001,
       "schedule": {
         "kind": "cron",
         "expr": "0 4 * * 1"
@@ -113,7 +125,56 @@
         "bestEffortDeliver": true
       },
       "state": {
-        "nextRunAtMs": 1770609600000
+        "nextRunAtMs": 1771182000000,
+        "lastRunAtMs": 1770577200001,
+        "lastStatus": "ok",
+        "lastDurationMs": 11938
+      }
+    },
+    {
+      "id": "f3414428-57d5-41c1-b7f9-352de7ee8537",
+      "agentId": "main",
+      "name": "night-briefing 夜のブリーフィング",
+      "createdAtMs": 1770498047070,
+      "updatedAtMs": 1770498047070,
+      "schedule": {
+        "kind": "at",
+        "atMs": 1730000000000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "1. 茨城県北茨城市の明日の天気（午前と午後の天気、最高気温・最低気温）を調べてください。\\n2. Google Calendarから明日の予定を取得してください（gcalcli agendaを使用）。\\n3. 最新のAIモデルに関するニュース3本を要約してください（各200字程度）。\\n\\n上記の内容をTelegramで送信してください。",
+        "model": "openrouter/deepseek/deepseek-chat",
+        "deliver": true,
+        "channel": "telegram"
+      },
+      "state": {}
+    },
+    {
+      "id": "5aa73a1b-4dcc-4953-8077-86270eeb58b2",
+      "agentId": "main",
+      "name": "night-briefing 夜のブリーフィング",
+      "enabled": true,
+      "createdAtMs": 1770638478609,
+      "updatedAtMs": 1770638478609,
+      "schedule": {
+        "kind": "every",
+        "everyMs": 86400000,
+        "anchorMs": 1707508800000
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "next-heartbeat",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "1. 茨城県北茨城市の明日の天気（午前と午後の天気、最高気温・最低気温）を調べてください。\\n2. gcalcli agendaを使ってGoogle Calendarから明日の予定を取得してください。\\n3. 最新のAIモデルに関するニュース3本を要約してください（各200字程度）。\\n\\nTelegramで送信してください。",
+        "model": "openrouter/deepseek/deepseek-chat",
+        "timeoutSeconds": 600,
+        "deliver": true
+      },
+      "state": {
+        "nextRunAtMs": 1770667200000
       }
     }
   ]

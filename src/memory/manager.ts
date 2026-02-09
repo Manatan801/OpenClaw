@@ -20,15 +20,9 @@ import { resolveSessionTranscriptsDirForAgent } from "../config/sessions/paths.j
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { onSessionTranscriptUpdate } from "../sessions/transcript-events.js";
 import { resolveUserPath } from "../utils.js";
-import { runGeminiEmbeddingBatches, type GeminiBatchRequest } from "./batch-gemini.js";
 import {
-  OPENAI_BATCH_ENDPOINT,
-  type OpenAiBatchRequest,
-  runOpenAiEmbeddingBatches,
-} from "./batch-openai.js";
-import { DEFAULT_GEMINI_EMBEDDING_MODEL } from "./embeddings-gemini.js";
-import { DEFAULT_OPENAI_EMBEDDING_MODEL } from "./embeddings-openai.js";
-import {
+  DEFAULT_GEMINI_EMBEDDING_MODEL,
+  DEFAULT_OPENAI_EMBEDDING_MODEL,
   createEmbeddingProvider,
   type EmbeddingProvider,
   type EmbeddingProviderResult,
@@ -37,21 +31,44 @@ import {
 } from "./embeddings.js";
 import { bm25RankToScore, buildFtsQuery, mergeHybridResults } from "./hybrid.js";
 import {
-  buildFileEntry,
   chunkMarkdown,
   ensureDir,
   hashText,
   isMemoryPath,
-  listMemoryFiles,
   normalizeExtraMemoryPaths,
   type MemoryChunk,
   type MemoryFileEntry,
   parseEmbedding,
 } from "./internal.js";
+import {
+  EMBEDDING_INDEX_CONCURRENCY,
+  EMBEDDING_QUERY_TIMEOUT_LOCAL_MS,
+  EMBEDDING_QUERY_TIMEOUT_REMOTE_MS,
+  EMBEDDING_BATCH_TIMEOUT_LOCAL_MS,
+  EMBEDDING_BATCH_TIMEOUT_REMOTE_MS,
+  BATCH_FAILURE_LIMIT,
+  EmbeddingBatchManager,
+  EMBEDDING_APPROX_CHARS_PER_TOKEN,
+} from "./manager-batch.js";
+import {
+  EMBEDDING_CACHE_TABLE,
+  loadEmbeddingCache,
+  pruneEmbeddingCacheIfNeeded,
+  upsertEmbeddingCache,
+} from "./manager-embedding-cache.js";
 import { searchKeyword, searchVector } from "./manager-search.js";
+import {
+  isSessionFileForAgent,
+  processSessionDeltaBatch,
+  resetSessionDelta,
+  SESSION_DIRTY_DEBOUNCE_MS,
+  type SessionDeltaState,
+} from "./manager-session-delta.js";
 import { ensureMemoryIndexSchema } from "./memory-schema.js";
 import { loadSqliteVecExtension } from "./sqlite-vec.js";
 import { requireNodeSqlite } from "./sqlite.js";
+import { syncMemoryFiles } from "./sync-memory-files.js";
+import { syncSessionFiles } from "./sync-session-files.js";
 
 type MemoryIndexMeta = {
   model: string;
@@ -82,22 +99,7 @@ const META_KEY = "memory_index_meta_v1";
 const SNIPPET_MAX_CHARS = 700;
 const VECTOR_TABLE = "chunks_vec";
 const FTS_TABLE = "chunks_fts";
-const EMBEDDING_CACHE_TABLE = "embedding_cache";
-const SESSION_DIRTY_DEBOUNCE_MS = 5000;
-const EMBEDDING_BATCH_MAX_TOKENS = 8000;
-const EMBEDDING_APPROX_CHARS_PER_TOKEN = 1;
-const EMBEDDING_INDEX_CONCURRENCY = 4;
-const EMBEDDING_RETRY_MAX_ATTEMPTS = 3;
-const EMBEDDING_RETRY_BASE_DELAY_MS = 500;
-const EMBEDDING_RETRY_MAX_DELAY_MS = 8000;
-const BATCH_FAILURE_LIMIT = 2;
-const SESSION_DELTA_READ_CHUNK_BYTES = 64 * 1024;
 const VECTOR_LOAD_TIMEOUT_MS = 30_000;
-const EMBEDDING_QUERY_TIMEOUT_REMOTE_MS = 60_000;
-const EMBEDDING_QUERY_TIMEOUT_LOCAL_MS = 5 * 60_000;
-const EMBEDDING_BATCH_TIMEOUT_REMOTE_MS = 2 * 60_000;
-const EMBEDDING_BATCH_TIMEOUT_LOCAL_MS = 10 * 60_000;
-
 const log = createSubsystemLogger("memory");
 
 const INDEX_CACHE = new Map<string, MemoryIndexManager>();
@@ -125,9 +127,20 @@ export class MemoryIndexManager implements MemorySearchManager {
     timeoutMs: number;
   };
   private batchFailureCount = 0;
-  private batchFailureLastError?: string;
-  private batchFailureLastProvider?: string;
   private batchFailureLock: Promise<void> = Promise.resolve();
+
+  private getBatchContext() {
+    return {
+      agentId: this.agentId,
+      db: this.db,
+      provider: this.provider,
+      providerKey: this.providerKey,
+      openAi: this.openAi,
+      gemini: this.gemini,
+      cache: { enabled: this.cache.enabled, maxEntries: this.cache.maxEntries ?? 0 },
+      batchConfig: this.batch,
+    };
+  }
   private db: DatabaseSync;
   private readonly sources: Set<MemorySource>;
   private providerKey: string;
@@ -139,6 +152,7 @@ export class MemoryIndexManager implements MemorySearchManager {
     loadError?: string;
     dims?: number;
   };
+
   private readonly fts: {
     enabled: boolean;
     available: boolean;
@@ -155,12 +169,27 @@ export class MemoryIndexManager implements MemorySearchManager {
   private sessionsDirty = false;
   private sessionsDirtyFiles = new Set<string>();
   private sessionPendingFiles = new Set<string>();
-  private sessionDeltas = new Map<
-    string,
-    { lastSize: number; pendingBytes: number; pendingMessages: number }
-  >();
+  private sessionDeltas = new Map<string, SessionDeltaState>();
+  private batchManager: EmbeddingBatchManager;
   private sessionWarm = new Set<string>();
   private syncing: Promise<void> | null = null;
+
+  private getSyncParams() {
+    return {
+      workspaceDir: this.workspaceDir,
+      extraPaths: this.settings.extraPaths,
+      db: this.db,
+      batchEnabled: this.batch.enabled,
+      batch: this.batch,
+      concurrency: this.getIndexConcurrency(),
+      runWithConcurrency: this.runWithConcurrency.bind(this),
+      vectorTable: VECTOR_TABLE,
+      ftsTable: FTS_TABLE,
+      ftsEnabled: this.fts.enabled,
+      ftsAvailable: this.fts.available,
+      model: this.provider.model,
+    };
+  }
 
   static async get(params: {
     cfg: OpenClawConfig;
@@ -240,6 +269,7 @@ export class MemoryIndexManager implements MemorySearchManager {
     this.ensureIntervalSync();
     this.dirty = this.sources.has("memory");
     this.batch = this.resolveBatchConfig();
+    this.batchManager = new EmbeddingBatchManager();
   }
 
   async warmSession(sessionKey?: string): Promise<void> {
@@ -547,14 +577,14 @@ export class MemoryIndexManager implements MemorySearchManager {
       },
       batch: {
         enabled: this.batch.enabled,
-        failures: this.batchFailureCount,
+        failures: this.batchManager.batchFailureCount,
         limit: BATCH_FAILURE_LIMIT,
         wait: this.batch.wait,
         concurrency: this.batch.concurrency,
         pollIntervalMs: this.batch.pollIntervalMs,
         timeoutMs: this.batch.timeoutMs,
-        lastError: this.batchFailureLastError,
-        lastProvider: this.batchFailureLastProvider,
+        lastError: this.batchManager.batchFailureLastError,
+        lastProvider: this.batchManager.batchFailureLastProvider,
       },
     };
   }
@@ -568,7 +598,7 @@ export class MemoryIndexManager implements MemorySearchManager {
 
   async probeEmbeddingAvailability(): Promise<MemoryEmbeddingProbeResult> {
     try {
-      await this.embedBatchWithRetry(["ping"]);
+      await this.batchManager.embedBatchWithRetry(["ping"], this.getBatchContext());
       return { ok: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -849,7 +879,7 @@ export class MemoryIndexManager implements MemorySearchManager {
         return;
       }
       const sessionFile = update.sessionFile;
-      if (!this.isSessionFileForAgent(sessionFile)) {
+      if (!isSessionFileForAgent({ sessionFile, agentId: this.agentId })) {
         return;
       }
       this.scheduleSessionDirty(sessionFile);
@@ -873,145 +903,27 @@ export class MemoryIndexManager implements MemorySearchManager {
     if (this.sessionPendingFiles.size === 0) {
       return;
     }
-    const pending = Array.from(this.sessionPendingFiles);
+    const pendingFiles = Array.from(this.sessionPendingFiles);
     this.sessionPendingFiles.clear();
-    let shouldSync = false;
-    for (const sessionFile of pending) {
-      const delta = await this.updateSessionDelta(sessionFile);
-      if (!delta) {
-        continue;
+
+    const { dirtyFiles, shouldSync } = await processSessionDeltaBatch({
+      pendingFiles,
+      deltas: this.sessionDeltas,
+      thresholds: this.settings.sync.sessions,
+    });
+
+    if (dirtyFiles.length > 0) {
+      for (const file of dirtyFiles) {
+        this.sessionsDirtyFiles.add(file);
       }
-      const bytesThreshold = delta.deltaBytes;
-      const messagesThreshold = delta.deltaMessages;
-      const bytesHit =
-        bytesThreshold <= 0 ? delta.pendingBytes > 0 : delta.pendingBytes >= bytesThreshold;
-      const messagesHit =
-        messagesThreshold <= 0
-          ? delta.pendingMessages > 0
-          : delta.pendingMessages >= messagesThreshold;
-      if (!bytesHit && !messagesHit) {
-        continue;
-      }
-      this.sessionsDirtyFiles.add(sessionFile);
       this.sessionsDirty = true;
-      delta.pendingBytes =
-        bytesThreshold > 0 ? Math.max(0, delta.pendingBytes - bytesThreshold) : 0;
-      delta.pendingMessages =
-        messagesThreshold > 0 ? Math.max(0, delta.pendingMessages - messagesThreshold) : 0;
-      shouldSync = true;
     }
+
     if (shouldSync) {
       void this.sync({ reason: "session-delta" }).catch((err) => {
         log.warn(`memory sync failed (session-delta): ${String(err)}`);
       });
     }
-  }
-
-  private async updateSessionDelta(sessionFile: string): Promise<{
-    deltaBytes: number;
-    deltaMessages: number;
-    pendingBytes: number;
-    pendingMessages: number;
-  } | null> {
-    const thresholds = this.settings.sync.sessions;
-    if (!thresholds) {
-      return null;
-    }
-    let stat: { size: number };
-    try {
-      stat = await fs.stat(sessionFile);
-    } catch {
-      return null;
-    }
-    const size = stat.size;
-    let state = this.sessionDeltas.get(sessionFile);
-    if (!state) {
-      state = { lastSize: 0, pendingBytes: 0, pendingMessages: 0 };
-      this.sessionDeltas.set(sessionFile, state);
-    }
-    const deltaBytes = Math.max(0, size - state.lastSize);
-    if (deltaBytes === 0 && size === state.lastSize) {
-      return {
-        deltaBytes: thresholds.deltaBytes,
-        deltaMessages: thresholds.deltaMessages,
-        pendingBytes: state.pendingBytes,
-        pendingMessages: state.pendingMessages,
-      };
-    }
-    if (size < state.lastSize) {
-      state.lastSize = size;
-      state.pendingBytes += size;
-      const shouldCountMessages =
-        thresholds.deltaMessages > 0 &&
-        (thresholds.deltaBytes <= 0 || state.pendingBytes < thresholds.deltaBytes);
-      if (shouldCountMessages) {
-        state.pendingMessages += await this.countNewlines(sessionFile, 0, size);
-      }
-    } else {
-      state.pendingBytes += deltaBytes;
-      const shouldCountMessages =
-        thresholds.deltaMessages > 0 &&
-        (thresholds.deltaBytes <= 0 || state.pendingBytes < thresholds.deltaBytes);
-      if (shouldCountMessages) {
-        state.pendingMessages += await this.countNewlines(sessionFile, state.lastSize, size);
-      }
-      state.lastSize = size;
-    }
-    this.sessionDeltas.set(sessionFile, state);
-    return {
-      deltaBytes: thresholds.deltaBytes,
-      deltaMessages: thresholds.deltaMessages,
-      pendingBytes: state.pendingBytes,
-      pendingMessages: state.pendingMessages,
-    };
-  }
-
-  private async countNewlines(absPath: string, start: number, end: number): Promise<number> {
-    if (end <= start) {
-      return 0;
-    }
-    const handle = await fs.open(absPath, "r");
-    try {
-      let offset = start;
-      let count = 0;
-      const buffer = Buffer.alloc(SESSION_DELTA_READ_CHUNK_BYTES);
-      while (offset < end) {
-        const toRead = Math.min(buffer.length, end - offset);
-        const { bytesRead } = await handle.read(buffer, 0, toRead, offset);
-        if (bytesRead <= 0) {
-          break;
-        }
-        for (let i = 0; i < bytesRead; i += 1) {
-          if (buffer[i] === 10) {
-            count += 1;
-          }
-        }
-        offset += bytesRead;
-      }
-      return count;
-    } finally {
-      await handle.close();
-    }
-  }
-
-  private resetSessionDelta(absPath: string, size: number): void {
-    const state = this.sessionDeltas.get(absPath);
-    if (!state) {
-      return;
-    }
-    state.lastSize = size;
-    state.pendingBytes = 0;
-    state.pendingMessages = 0;
-  }
-
-  private isSessionFileForAgent(sessionFile: string): boolean {
-    if (!sessionFile) {
-      return false;
-    }
-    const sessionsDir = resolveSessionTranscriptsDirForAgent(this.agentId);
-    const resolvedFile = path.resolve(sessionFile);
-    const resolvedDir = path.resolve(sessionsDir);
-    return resolvedFile.startsWith(`${resolvedDir}${path.sep}`);
   }
 
   private ensureIntervalSync() {
@@ -1062,205 +974,14 @@ export class MemoryIndexManager implements MemorySearchManager {
     return this.sessionsDirty && this.sessionsDirtyFiles.size > 0;
   }
 
-  private async syncMemoryFiles(params: {
-    needsFullReindex: boolean;
-    progress?: MemorySyncProgressState;
-  }) {
-    const files = await listMemoryFiles(this.workspaceDir, this.settings.extraPaths);
-    const fileEntries = await Promise.all(
-      files.map(async (file) => buildFileEntry(file, this.workspaceDir)),
-    );
-    log.debug("memory sync: indexing memory files", {
-      files: fileEntries.length,
-      needsFullReindex: params.needsFullReindex,
-      batch: this.batch.enabled,
-      concurrency: this.getIndexConcurrency(),
-    });
-    const activePaths = new Set(fileEntries.map((entry) => entry.path));
-    if (params.progress) {
-      params.progress.total += fileEntries.length;
-      params.progress.report({
-        completed: params.progress.completed,
-        total: params.progress.total,
-        label: this.batch.enabled ? "Indexing memory files (batch)..." : "Indexing memory files…",
-      });
-    }
-
-    const tasks = fileEntries.map((entry) => async () => {
-      const record = this.db
-        .prepare(`SELECT hash FROM files WHERE path = ? AND source = ?`)
-        .get(entry.path, "memory") as { hash: string } | undefined;
-      if (!params.needsFullReindex && record?.hash === entry.hash) {
-        if (params.progress) {
-          params.progress.completed += 1;
-          params.progress.report({
-            completed: params.progress.completed,
-            total: params.progress.total,
-          });
-        }
-        return;
-      }
-      await this.indexFile(entry, { source: "memory" });
-      if (params.progress) {
-        params.progress.completed += 1;
-        params.progress.report({
-          completed: params.progress.completed,
-          total: params.progress.total,
-        });
-      }
-    });
-    await this.runWithConcurrency(tasks, this.getIndexConcurrency());
-
-    const staleRows = this.db
-      .prepare(`SELECT path FROM files WHERE source = ?`)
-      .all("memory") as Array<{ path: string }>;
-    for (const stale of staleRows) {
-      if (activePaths.has(stale.path)) {
-        continue;
-      }
-      this.db.prepare(`DELETE FROM files WHERE path = ? AND source = ?`).run(stale.path, "memory");
-      try {
-        this.db
-          .prepare(
-            `DELETE FROM ${VECTOR_TABLE} WHERE id IN (SELECT id FROM chunks WHERE path = ? AND source = ?)`,
-          )
-          .run(stale.path, "memory");
-      } catch {}
-      this.db.prepare(`DELETE FROM chunks WHERE path = ? AND source = ?`).run(stale.path, "memory");
-      if (this.fts.enabled && this.fts.available) {
-        try {
-          this.db
-            .prepare(`DELETE FROM ${FTS_TABLE} WHERE path = ? AND source = ? AND model = ?`)
-            .run(stale.path, "memory", this.provider.model);
-        } catch {}
-      }
-    }
-  }
-
-  private async syncSessionFiles(params: {
-    needsFullReindex: boolean;
-    progress?: MemorySyncProgressState;
-  }) {
-    const files = await this.listSessionFiles();
-    const activePaths = new Set(files.map((file) => this.sessionPathForFile(file)));
-    const indexAll = params.needsFullReindex || this.sessionsDirtyFiles.size === 0;
-    log.debug("memory sync: indexing session files", {
-      files: files.length,
-      indexAll,
-      dirtyFiles: this.sessionsDirtyFiles.size,
-      batch: this.batch.enabled,
-      concurrency: this.getIndexConcurrency(),
-    });
-    if (params.progress) {
-      params.progress.total += files.length;
-      params.progress.report({
-        completed: params.progress.completed,
-        total: params.progress.total,
-        label: this.batch.enabled ? "Indexing session files (batch)..." : "Indexing session files…",
-      });
-    }
-
-    const tasks = files.map((absPath) => async () => {
-      if (!indexAll && !this.sessionsDirtyFiles.has(absPath)) {
-        if (params.progress) {
-          params.progress.completed += 1;
-          params.progress.report({
-            completed: params.progress.completed,
-            total: params.progress.total,
-          });
-        }
-        return;
-      }
-      const entry = await this.buildSessionEntry(absPath);
-      if (!entry) {
-        if (params.progress) {
-          params.progress.completed += 1;
-          params.progress.report({
-            completed: params.progress.completed,
-            total: params.progress.total,
-          });
-        }
-        return;
-      }
-      const record = this.db
-        .prepare(`SELECT hash FROM files WHERE path = ? AND source = ?`)
-        .get(entry.path, "sessions") as { hash: string } | undefined;
-      if (!params.needsFullReindex && record?.hash === entry.hash) {
-        if (params.progress) {
-          params.progress.completed += 1;
-          params.progress.report({
-            completed: params.progress.completed,
-            total: params.progress.total,
-          });
-        }
-        this.resetSessionDelta(absPath, entry.size);
-        return;
-      }
-      await this.indexFile(entry, { source: "sessions", content: entry.content });
-      this.resetSessionDelta(absPath, entry.size);
-      if (params.progress) {
-        params.progress.completed += 1;
-        params.progress.report({
-          completed: params.progress.completed,
-          total: params.progress.total,
-        });
-      }
-    });
-    await this.runWithConcurrency(tasks, this.getIndexConcurrency());
-
-    const staleRows = this.db
-      .prepare(`SELECT path FROM files WHERE source = ?`)
-      .all("sessions") as Array<{ path: string }>;
-    for (const stale of staleRows) {
-      if (activePaths.has(stale.path)) {
-        continue;
-      }
-      this.db
-        .prepare(`DELETE FROM files WHERE path = ? AND source = ?`)
-        .run(stale.path, "sessions");
-      try {
-        this.db
-          .prepare(
-            `DELETE FROM ${VECTOR_TABLE} WHERE id IN (SELECT id FROM chunks WHERE path = ? AND source = ?)`,
-          )
-          .run(stale.path, "sessions");
-      } catch {}
-      this.db
-        .prepare(`DELETE FROM chunks WHERE path = ? AND source = ?`)
-        .run(stale.path, "sessions");
-      if (this.fts.enabled && this.fts.available) {
-        try {
-          this.db
-            .prepare(`DELETE FROM ${FTS_TABLE} WHERE path = ? AND source = ? AND model = ?`)
-            .run(stale.path, "sessions", this.provider.model);
-        } catch {}
-      }
-    }
-  }
-
   private createSyncProgress(
-    onProgress: (update: MemorySyncProgressUpdate) => void,
+    report: (update: MemorySyncProgressUpdate) => void,
   ): MemorySyncProgressState {
-    const state: MemorySyncProgressState = {
+    return {
       completed: 0,
       total: 0,
-      label: undefined,
-      report: (update) => {
-        if (update.label) {
-          state.label = update.label;
-        }
-        const label =
-          update.total > 0 && state.label
-            ? `${state.label} ${update.completed}/${update.total}`
-            : state.label;
-        onProgress({
-          completed: update.completed,
-          total: update.total,
-          label,
-        });
-      },
+      report,
     };
-    return state;
   }
 
   private async runSync(params?: {
@@ -1302,12 +1023,25 @@ export class MemoryIndexManager implements MemorySearchManager {
       const shouldSyncSessions = this.shouldSyncSessions(params, needsFullReindex);
 
       if (shouldSyncMemory) {
-        await this.syncMemoryFiles({ needsFullReindex, progress: progress ?? undefined });
+        await syncMemoryFiles({
+          ...this.getSyncParams(),
+          needsFullReindex,
+          progress: progress ?? undefined,
+          indexFile: (entry) => this.indexFile(entry, { source: "memory" }),
+        });
         this.dirty = false;
       }
 
       if (shouldSyncSessions) {
-        await this.syncSessionFiles({ needsFullReindex, progress: progress ?? undefined });
+        await syncSessionFiles({
+          ...this.getSyncParams(),
+          agentId: this.agentId,
+          needsFullReindex,
+          progress: progress ?? undefined,
+          dirtyFiles: this.sessionsDirtyFiles,
+          indexFile: (entry) =>
+            this.indexFile(entry, { source: "sessions", content: entry.content }),
+        });
         this.sessionsDirty = false;
         this.sessionsDirtyFiles.clear();
       } else if (this.sessionsDirtyFiles.size > 0) {
@@ -1449,12 +1183,25 @@ export class MemoryIndexManager implements MemorySearchManager {
       );
 
       if (shouldSyncMemory) {
-        await this.syncMemoryFiles({ needsFullReindex: true, progress: params.progress });
+        await syncMemoryFiles({
+          ...this.getSyncParams(),
+          needsFullReindex: true,
+          progress: params.progress,
+          indexFile: (entry) => this.indexFile(entry, { source: "memory" }),
+        });
         this.dirty = false;
       }
 
       if (shouldSyncSessions) {
-        await this.syncSessionFiles({ needsFullReindex: true, progress: params.progress });
+        await syncSessionFiles({
+          ...this.getSyncParams(),
+          agentId: this.agentId,
+          needsFullReindex: true,
+          progress: params.progress,
+          dirtyFiles: this.sessionsDirtyFiles,
+          indexFile: (entry) =>
+            this.indexFile(entry, { source: "sessions", content: entry.content }),
+        });
         this.sessionsDirty = false;
         this.sessionsDirtyFiles.clear();
       } else if (this.sessionsDirtyFiles.size > 0) {
@@ -1649,74 +1396,16 @@ export class MemoryIndexManager implements MemorySearchManager {
     return Math.ceil(text.length / EMBEDDING_APPROX_CHARS_PER_TOKEN);
   }
 
-  private buildEmbeddingBatches(chunks: MemoryChunk[]): MemoryChunk[][] {
-    const batches: MemoryChunk[][] = [];
-    let current: MemoryChunk[] = [];
-    let currentTokens = 0;
-
-    for (const chunk of chunks) {
-      const estimate = this.estimateEmbeddingTokens(chunk.text);
-      const wouldExceed =
-        current.length > 0 && currentTokens + estimate > EMBEDDING_BATCH_MAX_TOKENS;
-      if (wouldExceed) {
-        batches.push(current);
-        current = [];
-        currentTokens = 0;
-      }
-      if (current.length === 0 && estimate > EMBEDDING_BATCH_MAX_TOKENS) {
-        batches.push([chunk]);
-        continue;
-      }
-      current.push(chunk);
-      currentTokens += estimate;
-    }
-
-    if (current.length > 0) {
-      batches.push(current);
-    }
-    return batches;
-  }
-
   private loadEmbeddingCache(hashes: string[]): Map<string, number[]> {
-    if (!this.cache.enabled) {
-      return new Map();
-    }
-    if (hashes.length === 0) {
-      return new Map();
-    }
-    const unique: string[] = [];
-    const seen = new Set<string>();
-    for (const hash of hashes) {
-      if (!hash) {
-        continue;
-      }
-      if (seen.has(hash)) {
-        continue;
-      }
-      seen.add(hash);
-      unique.push(hash);
-    }
-    if (unique.length === 0) {
-      return new Map();
-    }
-
-    const out = new Map<string, number[]>();
-    const baseParams = [this.provider.id, this.provider.model, this.providerKey];
-    const batchSize = 400;
-    for (let start = 0; start < unique.length; start += batchSize) {
-      const batch = unique.slice(start, start + batchSize);
-      const placeholders = batch.map(() => "?").join(", ");
-      const rows = this.db
-        .prepare(
-          `SELECT hash, embedding FROM ${EMBEDDING_CACHE_TABLE}\n` +
-            ` WHERE provider = ? AND model = ? AND provider_key = ? AND hash IN (${placeholders})`,
-        )
-        .all(...baseParams, ...batch) as Array<{ hash: string; embedding: string }>;
-      for (const row of rows) {
-        out.set(row.hash, parseEmbedding(row.embedding));
-      }
-    }
-    return out;
+    return loadEmbeddingCache(
+      {
+        db: this.db,
+        cache: this.cache,
+        provider: this.provider,
+        providerKey: this.providerKey,
+      },
+      hashes,
+    );
   }
 
   private upsertEmbeddingCache(entries: Array<{ hash: string; embedding: number[] }>): void {
@@ -1777,48 +1466,6 @@ export class MemoryIndexManager implements MemorySearchManager {
       .run(excess);
   }
 
-  private async embedChunksInBatches(chunks: MemoryChunk[]): Promise<number[][]> {
-    if (chunks.length === 0) {
-      return [];
-    }
-    const cached = this.loadEmbeddingCache(chunks.map((chunk) => chunk.hash));
-    const embeddings: number[][] = Array.from({ length: chunks.length }, () => []);
-    const missing: Array<{ index: number; chunk: MemoryChunk }> = [];
-
-    for (let i = 0; i < chunks.length; i += 1) {
-      const chunk = chunks[i];
-      const hit = chunk?.hash ? cached.get(chunk.hash) : undefined;
-      if (hit && hit.length > 0) {
-        embeddings[i] = hit;
-      } else if (chunk) {
-        missing.push({ index: i, chunk });
-      }
-    }
-
-    if (missing.length === 0) {
-      return embeddings;
-    }
-
-    const missingChunks = missing.map((m) => m.chunk);
-    const batches = this.buildEmbeddingBatches(missingChunks);
-    const toCache: Array<{ hash: string; embedding: number[] }> = [];
-    let cursor = 0;
-    for (const batch of batches) {
-      const batchEmbeddings = await this.embedBatchWithRetry(batch.map((chunk) => chunk.text));
-      for (let i = 0; i < batch.length; i += 1) {
-        const item = missing[cursor + i];
-        const embedding = batchEmbeddings[i] ?? [];
-        if (item) {
-          embeddings[item.index] = embedding;
-          toCache.push({ hash: item.chunk.hash, embedding });
-        }
-      }
-      cursor += batch.length;
-    }
-    this.upsertEmbeddingCache(toCache);
-    return embeddings;
-  }
-
   private computeProviderKey(): string {
     if (this.provider.id === "openai" && this.openAi) {
       const entries = Object.entries(this.openAi.headers)
@@ -1852,221 +1499,6 @@ export class MemoryIndexManager implements MemorySearchManager {
       );
     }
     return hashText(JSON.stringify({ provider: this.provider.id, model: this.provider.model }));
-  }
-
-  private async embedChunksWithBatch(
-    chunks: MemoryChunk[],
-    entry: MemoryFileEntry | SessionFileEntry,
-    source: MemorySource,
-  ): Promise<number[][]> {
-    if (this.provider.id === "openai" && this.openAi) {
-      return this.embedChunksWithOpenAiBatch(chunks, entry, source);
-    }
-    if (this.provider.id === "gemini" && this.gemini) {
-      return this.embedChunksWithGeminiBatch(chunks, entry, source);
-    }
-    return this.embedChunksInBatches(chunks);
-  }
-
-  private async embedChunksWithOpenAiBatch(
-    chunks: MemoryChunk[],
-    entry: MemoryFileEntry | SessionFileEntry,
-    source: MemorySource,
-  ): Promise<number[][]> {
-    const openAi = this.openAi;
-    if (!openAi) {
-      return this.embedChunksInBatches(chunks);
-    }
-    if (chunks.length === 0) {
-      return [];
-    }
-    const cached = this.loadEmbeddingCache(chunks.map((chunk) => chunk.hash));
-    const embeddings: number[][] = Array.from({ length: chunks.length }, () => []);
-    const missing: Array<{ index: number; chunk: MemoryChunk }> = [];
-
-    for (let i = 0; i < chunks.length; i += 1) {
-      const chunk = chunks[i];
-      const hit = chunk?.hash ? cached.get(chunk.hash) : undefined;
-      if (hit && hit.length > 0) {
-        embeddings[i] = hit;
-      } else if (chunk) {
-        missing.push({ index: i, chunk });
-      }
-    }
-
-    if (missing.length === 0) {
-      return embeddings;
-    }
-
-    const requests: OpenAiBatchRequest[] = [];
-    const mapping = new Map<string, { index: number; hash: string }>();
-    for (const item of missing) {
-      const chunk = item.chunk;
-      const customId = hashText(
-        `${source}:${entry.path}:${chunk.startLine}:${chunk.endLine}:${chunk.hash}:${item.index}`,
-      );
-      mapping.set(customId, { index: item.index, hash: chunk.hash });
-      requests.push({
-        custom_id: customId,
-        method: "POST",
-        url: OPENAI_BATCH_ENDPOINT,
-        body: {
-          model: this.openAi?.model ?? this.provider.model,
-          input: chunk.text,
-        },
-      });
-    }
-    const batchResult = await this.runBatchWithFallback({
-      provider: "openai",
-      run: async () =>
-        await runOpenAiEmbeddingBatches({
-          openAi,
-          agentId: this.agentId,
-          requests,
-          wait: this.batch.wait,
-          concurrency: this.batch.concurrency,
-          pollIntervalMs: this.batch.pollIntervalMs,
-          timeoutMs: this.batch.timeoutMs,
-          debug: (message, data) => log.debug(message, { ...data, source, chunks: chunks.length }),
-        }),
-      fallback: async () => await this.embedChunksInBatches(chunks),
-    });
-    if (Array.isArray(batchResult)) {
-      return batchResult;
-    }
-    const byCustomId = batchResult;
-
-    const toCache: Array<{ hash: string; embedding: number[] }> = [];
-    for (const [customId, embedding] of byCustomId.entries()) {
-      const mapped = mapping.get(customId);
-      if (!mapped) {
-        continue;
-      }
-      embeddings[mapped.index] = embedding;
-      toCache.push({ hash: mapped.hash, embedding });
-    }
-    this.upsertEmbeddingCache(toCache);
-    return embeddings;
-  }
-
-  private async embedChunksWithGeminiBatch(
-    chunks: MemoryChunk[],
-    entry: MemoryFileEntry | SessionFileEntry,
-    source: MemorySource,
-  ): Promise<number[][]> {
-    const gemini = this.gemini;
-    if (!gemini) {
-      return this.embedChunksInBatches(chunks);
-    }
-    if (chunks.length === 0) {
-      return [];
-    }
-    const cached = this.loadEmbeddingCache(chunks.map((chunk) => chunk.hash));
-    const embeddings: number[][] = Array.from({ length: chunks.length }, () => []);
-    const missing: Array<{ index: number; chunk: MemoryChunk }> = [];
-
-    for (let i = 0; i < chunks.length; i += 1) {
-      const chunk = chunks[i];
-      const hit = chunk?.hash ? cached.get(chunk.hash) : undefined;
-      if (hit && hit.length > 0) {
-        embeddings[i] = hit;
-      } else if (chunk) {
-        missing.push({ index: i, chunk });
-      }
-    }
-
-    if (missing.length === 0) {
-      return embeddings;
-    }
-
-    const requests: GeminiBatchRequest[] = [];
-    const mapping = new Map<string, { index: number; hash: string }>();
-    for (const item of missing) {
-      const chunk = item.chunk;
-      const customId = hashText(
-        `${source}:${entry.path}:${chunk.startLine}:${chunk.endLine}:${chunk.hash}:${item.index}`,
-      );
-      mapping.set(customId, { index: item.index, hash: chunk.hash });
-      requests.push({
-        custom_id: customId,
-        content: { parts: [{ text: chunk.text }] },
-        taskType: "RETRIEVAL_DOCUMENT",
-      });
-    }
-
-    const batchResult = await this.runBatchWithFallback({
-      provider: "gemini",
-      run: async () =>
-        await runGeminiEmbeddingBatches({
-          gemini,
-          agentId: this.agentId,
-          requests,
-          wait: this.batch.wait,
-          concurrency: this.batch.concurrency,
-          pollIntervalMs: this.batch.pollIntervalMs,
-          timeoutMs: this.batch.timeoutMs,
-          debug: (message, data) => log.debug(message, { ...data, source, chunks: chunks.length }),
-        }),
-      fallback: async () => await this.embedChunksInBatches(chunks),
-    });
-    if (Array.isArray(batchResult)) {
-      return batchResult;
-    }
-    const byCustomId = batchResult;
-
-    const toCache: Array<{ hash: string; embedding: number[] }> = [];
-    for (const [customId, embedding] of byCustomId.entries()) {
-      const mapped = mapping.get(customId);
-      if (!mapped) {
-        continue;
-      }
-      embeddings[mapped.index] = embedding;
-      toCache.push({ hash: mapped.hash, embedding });
-    }
-    this.upsertEmbeddingCache(toCache);
-    return embeddings;
-  }
-
-  private async embedBatchWithRetry(texts: string[]): Promise<number[][]> {
-    if (texts.length === 0) {
-      return [];
-    }
-    let attempt = 0;
-    let delayMs = EMBEDDING_RETRY_BASE_DELAY_MS;
-    while (true) {
-      try {
-        const timeoutMs = this.resolveEmbeddingTimeout("batch");
-        log.debug("memory embeddings: batch start", {
-          provider: this.provider.id,
-          items: texts.length,
-          timeoutMs,
-        });
-        return await this.withTimeout(
-          this.provider.embedBatch(texts),
-          timeoutMs,
-          `memory embeddings batch timed out after ${Math.round(timeoutMs / 1000)}s`,
-        );
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (!this.isRetryableEmbeddingError(message) || attempt >= EMBEDDING_RETRY_MAX_ATTEMPTS) {
-          throw err;
-        }
-        const waitMs = Math.min(
-          EMBEDDING_RETRY_MAX_DELAY_MS,
-          Math.round(delayMs * (1 + Math.random() * 0.2)),
-        );
-        log.warn(`memory embeddings rate limited; retrying in ${waitMs}ms`);
-        await new Promise((resolve) => setTimeout(resolve, waitMs));
-        delayMs *= 2;
-        attempt += 1;
-      }
-    }
-  }
-
-  private isRetryableEmbeddingError(message: string): boolean {
-    return /(rate[_ ]limit|too many requests|429|resource has been exhausted|5\d\d|cloudflare)/i.test(
-      message,
-    );
   }
 
   private resolveEmbeddingTimeout(kind: "query" | "batch"): number {
@@ -2143,113 +1575,6 @@ export class MemoryIndexManager implements MemorySearchManager {
     return results;
   }
 
-  private async withBatchFailureLock<T>(fn: () => Promise<T>): Promise<T> {
-    let release: () => void;
-    const wait = this.batchFailureLock;
-    this.batchFailureLock = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    await wait;
-    try {
-      return await fn();
-    } finally {
-      release!();
-    }
-  }
-
-  private async resetBatchFailureCount(): Promise<void> {
-    await this.withBatchFailureLock(async () => {
-      if (this.batchFailureCount > 0) {
-        log.debug("memory embeddings: batch recovered; resetting failure count");
-      }
-      this.batchFailureCount = 0;
-      this.batchFailureLastError = undefined;
-      this.batchFailureLastProvider = undefined;
-    });
-  }
-
-  private async recordBatchFailure(params: {
-    provider: string;
-    message: string;
-    attempts?: number;
-    forceDisable?: boolean;
-  }): Promise<{ disabled: boolean; count: number }> {
-    return await this.withBatchFailureLock(async () => {
-      if (!this.batch.enabled) {
-        return { disabled: true, count: this.batchFailureCount };
-      }
-      const increment = params.forceDisable
-        ? BATCH_FAILURE_LIMIT
-        : Math.max(1, params.attempts ?? 1);
-      this.batchFailureCount += increment;
-      this.batchFailureLastError = params.message;
-      this.batchFailureLastProvider = params.provider;
-      const disabled = params.forceDisable || this.batchFailureCount >= BATCH_FAILURE_LIMIT;
-      if (disabled) {
-        this.batch.enabled = false;
-      }
-      return { disabled, count: this.batchFailureCount };
-    });
-  }
-
-  private isBatchTimeoutError(message: string): boolean {
-    return /timed out|timeout/i.test(message);
-  }
-
-  private async runBatchWithTimeoutRetry<T>(params: {
-    provider: string;
-    run: () => Promise<T>;
-  }): Promise<T> {
-    try {
-      return await params.run();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (this.isBatchTimeoutError(message)) {
-        log.warn(`memory embeddings: ${params.provider} batch timed out; retrying once`);
-        try {
-          return await params.run();
-        } catch (retryErr) {
-          (retryErr as { batchAttempts?: number }).batchAttempts = 2;
-          throw retryErr;
-        }
-      }
-      throw err;
-    }
-  }
-
-  private async runBatchWithFallback<T>(params: {
-    provider: string;
-    run: () => Promise<T>;
-    fallback: () => Promise<number[][]>;
-  }): Promise<T | number[][]> {
-    if (!this.batch.enabled) {
-      return await params.fallback();
-    }
-    try {
-      const result = await this.runBatchWithTimeoutRetry({
-        provider: params.provider,
-        run: params.run,
-      });
-      await this.resetBatchFailureCount();
-      return result;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      const attempts = (err as { batchAttempts?: number }).batchAttempts ?? 1;
-      const forceDisable = /asyncBatchEmbedContent not available/i.test(message);
-      const failure = await this.recordBatchFailure({
-        provider: params.provider,
-        message,
-        attempts,
-        forceDisable,
-      });
-      const suffix = failure.disabled ? "disabling batch" : "keeping batch enabled";
-      log.warn(
-        `memory embeddings: ${params.provider} batch failed (${failure.count}/${BATCH_FAILURE_LIMIT}); ${suffix}; falling back to non-batch embeddings: ${message}`,
-      );
-      return await params.fallback();
-    }
-  }
-
   private getIndexConcurrency(): number {
     return this.batch.enabled ? this.batch.concurrency : EMBEDDING_INDEX_CONCURRENCY;
   }
@@ -2262,9 +1587,12 @@ export class MemoryIndexManager implements MemorySearchManager {
     const chunks = chunkMarkdown(content, this.settings.chunking).filter(
       (chunk) => chunk.text.trim().length > 0,
     );
-    const embeddings = this.batch.enabled
-      ? await this.embedChunksWithBatch(chunks, entry, options.source)
-      : await this.embedChunksInBatches(chunks);
+    const embeddings = await this.batchManager.embedChunksInBatches(
+      chunks,
+      entry,
+      options.source,
+      this.getBatchContext(),
+    );
     const sample = embeddings.find((embedding) => embedding.length > 0);
     const vectorReady = sample ? await this.ensureVectorReady(sample.length) : false;
     const now = Date.now();

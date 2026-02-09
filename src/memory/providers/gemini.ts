@@ -1,7 +1,8 @@
-import type { EmbeddingProvider, EmbeddingProviderOptions } from "./embeddings.js";
-import { requireApiKey, resolveApiKeyForProvider } from "../agents/model-auth.js";
-import { isTruthyEnvValue } from "../infra/env.js";
-import { createSubsystemLogger } from "../logging/subsystem.js";
+import type { EmbeddingProvider } from "./interfaces.js";
+import { requireApiKey, resolveApiKeyForProvider } from "../../agents/model-auth.js";
+import { isTruthyEnvValue } from "../../infra/env.js";
+import { createSubsystemLogger } from "../../logging/subsystem.js";
+import { type EmbeddingProviderOptions } from "../embeddings.js";
 
 export type GeminiEmbeddingClient = {
   baseUrl: string;

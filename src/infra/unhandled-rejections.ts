@@ -1,5 +1,8 @@
 import process from "node:process";
+import { createSubsystemLogger } from "../logging/subsystem.js";
 import { extractErrorCode, formatUncaughtError } from "./errors.js";
+
+const log = createSubsystemLogger("infra/unhandled");
 
 type UnhandledRejectionHandler = (reason: unknown) => boolean;
 
@@ -131,9 +134,9 @@ export function isUnhandledRejectionHandled(reason: unknown): boolean {
         return true;
       }
     } catch (err) {
-      console.error(
+      log.error(
         "[openclaw] Unhandled rejection handler failed:",
-        err instanceof Error ? (err.stack ?? err.message) : err,
+        err instanceof Error ? { error: err.stack ?? err.message } : { error: err },
       );
     }
   }
@@ -149,31 +152,32 @@ export function installUnhandledRejectionHandler(): void {
     // AbortError is typically an intentional cancellation (e.g., during shutdown)
     // Log it but don't crash - these are expected during graceful shutdown
     if (isAbortError(reason)) {
-      console.warn("[openclaw] Suppressed AbortError:", formatUncaughtError(reason));
+      log.warn("[openclaw] Suppressed AbortError:", { error: formatUncaughtError(reason) });
       return;
     }
 
     if (isFatalError(reason)) {
-      console.error("[openclaw] FATAL unhandled rejection:", formatUncaughtError(reason));
+      log.error("[openclaw] FATAL unhandled rejection:", { error: formatUncaughtError(reason) });
       process.exit(1);
       return;
     }
 
     if (isConfigError(reason)) {
-      console.error("[openclaw] CONFIGURATION ERROR - requires fix:", formatUncaughtError(reason));
+      log.error("[openclaw] CONFIGURATION ERROR - requires fix:", {
+        error: formatUncaughtError(reason),
+      });
       process.exit(1);
       return;
     }
 
     if (isTransientNetworkError(reason)) {
-      console.warn(
-        "[openclaw] Non-fatal unhandled rejection (continuing):",
-        formatUncaughtError(reason),
-      );
+      log.warn("[openclaw] Non-fatal unhandled rejection (continuing):", {
+        error: formatUncaughtError(reason),
+      });
       return;
     }
 
-    console.error("[openclaw] Unhandled promise rejection:", formatUncaughtError(reason));
+    log.error("[openclaw] Unhandled promise rejection:", { error: formatUncaughtError(reason) });
     process.exit(1);
   });
 }

@@ -1,4 +1,4 @@
-import type { OpenAiEmbeddingClient } from "./embeddings-openai.js";
+import type { OpenAiEmbeddingClient } from "./embeddings.js";
 import { retryAsync } from "../infra/retry.js";
 import { hashText } from "./internal.js";
 

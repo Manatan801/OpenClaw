@@ -7,6 +7,7 @@ import { computeBackoff, sleepWithAbort } from "../infra/backoff.js";
 import { formatErrorMessage } from "../infra/errors.js";
 import { formatDurationMs } from "../infra/format-duration.js";
 import { registerUnhandledRejectionHandler } from "../infra/unhandled-rejections.js";
+import { createSubsystemLogger } from "../logging/subsystem.js";
 import { resolveTelegramAccount } from "./accounts.js";
 import { resolveTelegramAllowedUpdates } from "./allowed-updates.js";
 import { createTelegramBot } from "./bot.js";
@@ -88,7 +89,8 @@ const isGrammyHttpError = (err: unknown): boolean => {
 };
 
 export async function monitorTelegramProvider(opts: MonitorTelegramOpts = {}) {
-  const log = opts.runtime?.error ?? console.error;
+  const fallbackLog = createSubsystemLogger("telegram/monitor");
+  const logError = opts.runtime?.error ?? ((msg) => fallbackLog.error(msg));
 
   // Register handler for Grammy HttpError unhandled rejections.
   // This catches network errors that escape the polling loop's try-catch
@@ -96,7 +98,7 @@ export async function monitorTelegramProvider(opts: MonitorTelegramOpts = {}) {
   // We gate on isGrammyHttpError to avoid suppressing non-Telegram errors.
   const unregisterHandler = registerUnhandledRejectionHandler((err) => {
     if (isGrammyHttpError(err) && isRecoverableTelegramNetworkError(err, { context: "polling" })) {
-      log(`[telegram] Suppressed network error: ${formatErrorMessage(err)}`);
+      logError(`[telegram] Suppressed network error: ${formatErrorMessage(err)}`);
       return true; // handled - don't crash
     }
     return false;
@@ -132,7 +134,7 @@ export async function monitorTelegramProvider(opts: MonitorTelegramOpts = {}) {
           updateId,
         });
       } catch (err) {
-        (opts.runtime?.error ?? console.error)(
+        (opts.runtime?.error ?? ((msg) => fallbackLog.error(msg)))(
           `telegram: failed to persist update offset: ${String(err)}`,
         );
       }
@@ -194,7 +196,7 @@ export async function monitorTelegramProvider(opts: MonitorTelegramOpts = {}) {
         const delayMs = computeBackoff(TELEGRAM_POLL_RESTART_POLICY, restartAttempts);
         const reason = isConflict ? "getUpdates conflict" : "network error";
         const errMsg = formatErrorMessage(err);
-        (opts.runtime?.error ?? console.error)(
+        (opts.runtime?.error ?? ((msg) => fallbackLog.error(msg)))(
           `Telegram ${reason}: ${errMsg}; retrying in ${formatDurationMs(delayMs)}.`,
         );
         try {

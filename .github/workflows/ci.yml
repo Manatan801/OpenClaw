@@ -153,6 +153,32 @@ jobs:
           pnpm -v
           pnpm install --frozen-lockfile --ignore-scripts=false --config.engine-strict=false --config.enable-pre-post-scripts=true || pnpm install --frozen-lockfile --ignore-scripts=false --config.engine-strict=false --config.enable-pre-post-scripts=true
 
+      - name: Check for console.* usage in src/
+        if: matrix.task == 'lint'
+        run: |
+          VIOLATIONS=$(grep -rn 'console\.\(log\|warn\|error\|info\|debug\)' src/ \
+            --include='*.ts' \
+            --exclude='*.test.ts' \
+            --exclude-dir='logging' \
+            | grep -v '// console-ok' \
+            | grep -v '^\s*//' \
+            | grep -v '@example' \
+            || true)
+          ALLOWED_FILES="src/index.ts src/cli/ src/macos/ src/terminal/restore.ts src/runtime.ts src/acp/ src/web/login.ts src/web/session.ts src/globals.ts src/commands/health.ts src/node-host/runner.ts"
+          # Filter out allowed files
+          FILTERED=$(echo "$VIOLATIONS" | while IFS= read -r line; do
+            MATCH=0
+            for f in $ALLOWED_FILES; do
+              case "$line" in *"$f"*) MATCH=1; break;; esac
+            done
+            [ "$MATCH" = "0" ] && echo "$line"
+          done || true)
+          if [ -n "$FILTERED" ]; then
+            echo "::error::Found console.* calls that should use createSubsystemLogger:"
+            echo "$FILTERED"
+            exit 1
+          fi
+
       - name: Run ${{ matrix.task }} (${{ matrix.runtime }})
         run: ${{ matrix.command }}
 

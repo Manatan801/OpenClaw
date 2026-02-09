@@ -125,6 +125,10 @@ export function applyMessageDefaults(cfg: OpenClawConfig): OpenClawConfig {
   };
 }
 
+import { createSubsystemLogger } from "../logging/subsystem.js";
+
+const log = createSubsystemLogger("config/defaults");
+
 export function applySessionDefaults(
   cfg: OpenClawConfig,
   options: SessionDefaultsOptions = {},
@@ -135,7 +139,7 @@ export function applySessionDefaults(
   }
 
   const trimmed = session.mainKey.trim();
-  const warn = options.warn ?? console.warn;
+  const warn = options.warn ?? ((msg) => log.warn(msg));
   const warnState = options.warnState ?? defaultWarnState;
 
   const next: OpenClawConfig = {

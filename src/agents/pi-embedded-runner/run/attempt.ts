@@ -330,6 +330,8 @@ export async function runEmbeddedAttempt(
         channel: runtimeChannel,
         capabilities: runtimeCapabilities,
         channelActions,
+        chatId: params.messageTo,
+        userId: params.senderId ?? undefined,
       },
     });
     const isDefaultAgent = sessionAgentId === defaultAgentId;

@@ -72,6 +72,12 @@ repos:
   # Project checks (same commands as CI)
   - repo: local
     hooks:
+      - id: no-console-in-src
+        name: Disallow console.* in src/
+        entry: bash -c 'git diff --cached --name-only --diff-filter=ACM -- "src/**/*.ts" | grep -v ".test.ts" | xargs grep -n "console\.\(log\|warn\|error\|info\|debug\)" -- 2>/dev/null | grep -v "// console-ok" | grep -v "@example" | grep -v "^\s*//" && echo "ERROR: Use createSubsystemLogger instead of console.*" && exit 1 || exit 0'
+        language: system
+        pass_filenames: false
+
       # oxlint --type-aware src test
       - id: oxlint
         name: oxlint

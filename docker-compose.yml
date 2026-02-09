@@ -7,7 +7,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: ${OPENCLAW_IMAGE:-openclaw:local}
-    
+
     # 【追加】設定ファイルを明示的に読み込ませます
     env_file:
       - .env
@@ -16,9 +16,9 @@ services:
       HOME: /home/node
       TERM: xterm-256color
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
-      CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
+      TZ: ${TZ}
     volumes:
       - ${OPENCLAW_CONFIG_DIR:-./config}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR:-./workspace}:/home/node/.openclaw/workspace
@@ -34,12 +34,12 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    command: ["node", "dist/index.js", "gateway"]
+    command: [ "node", "dist/index.js", "gateway" ]
 
   openclaw-cli:
     # Gatewayと同じイメージを使います（Gatewayがビルドしてくれます）
     image: ${OPENCLAW_IMAGE:-openclaw:local}
-    
+
     # 【追加】こちらも設定ファイルを読み込ませます
     env_file:
       - .env
@@ -49,9 +49,9 @@ services:
       TERM: xterm-256color
       OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN}
       BROWSER: echo
-      CLAUDE_AI_SESSION_KEY: ${CLAUDE_AI_SESSION_KEY}
       CLAUDE_WEB_SESSION_KEY: ${CLAUDE_WEB_SESSION_KEY}
       CLAUDE_WEB_COOKIE: ${CLAUDE_WEB_COOKIE}
+      TZ: ${TZ}
     volumes:
       - ${OPENCLAW_CONFIG_DIR:-./config}:/home/node/.openclaw
       - ${OPENCLAW_WORKSPACE_DIR:-./workspace}:/home/node/.openclaw/workspace
@@ -59,4 +59,4 @@ services:
     tty: true
     init: true
     entrypoint: []
-    command: ["tail", "-f", "/dev/null"]
+    command: [ "tail", "-f", "/dev/null" ]

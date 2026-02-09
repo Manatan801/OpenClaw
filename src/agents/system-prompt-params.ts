@@ -21,6 +21,8 @@ export type RuntimeInfoInput = {
   /** Supported message actions for the current channel (e.g., react, edit, unsend) */
   channelActions?: string[];
   repoRoot?: string;
+  chatId?: string;
+  userId?: string;
 };
 
 export type SystemPromptRuntimeParams = {

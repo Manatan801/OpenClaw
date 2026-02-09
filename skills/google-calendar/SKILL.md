@@ -21,19 +21,28 @@ Use `gcalcli` to manage calendar.
 Run `gcalcli list` to trigger authentication.
 If it provides a URL, use the `browser` tool to visit it and authorize.
 
+## IMPORTANT INSTRUCTIONS
+- **DO NOT INVENT DATA**: If `gcalcli` returns no output or an error, report "No events found" or the specific error message. Do NOT create fake events like "Project Kickoff".
+- **Real Data Only**: Only report events returned by the `gcalcli` command.
+- **【重要】ハルシネーション禁止**:
+  - コマンドの結果が空（empty）の場合、「予定はありません」と答えてください。
+  - エラーが出た場合、「エラーが発生しました」と報告してください。
+  - **絶対に**、「プロジェクトキックオフ」などの架空の予定を創作しないでください。
+
+
 ## Usage
 
 ### List Events
 ```bash
-gcalcli list --no-monochrome
+gcalcli --config-folder ~/.openclaw list
 ```
 
 ### Add Event
 ```bash
-gcalcli add --title "Meeting" --when "Tomorrow 10am" --duration 60 --noprompt
+gcalcli --config-folder ~/.openclaw add --title "Meeting" --when "Tomorrow 10am" --duration 60 --noprompt
 ```
 
 ### Agenda
 ```bash
-gcalcli agenda
+gcalcli --config-folder ~/.openclaw agenda
 ```
