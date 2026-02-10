@@ -31,8 +31,26 @@ deployments work at a high level.
 - Secure default: keep the Gateway on loopback and access it via SSH tunnel or Tailscale Serve.
   If you bind to `lan`/`tailnet`, require `gateway.auth.token` or `gateway.auth.password`.
 
-Remote access: [Gateway remote](/gateway/remote)  
+Remote access: [Gateway remote](/gateway/remote)
 Platforms hub: [Platforms](/platforms)
+
+## Low memory tips (1-2 GB VPS)
+
+If the Gateway freezes or gets killed by the OOM killer, add swap:
+
+```bash
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
+
+Other tips:
+- Use API-based models (Claude, GPT) instead of local models
+- Monitor with `free -h`
+
+Detailed per-provider guidance: [DigitalOcean](/platforms/digitalocean).
 
 ## Using nodes with a VPS
 
