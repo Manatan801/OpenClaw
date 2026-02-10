@@ -141,7 +141,7 @@ async function sendAnnounce(item: AnnounceQueueItem) {
       idempotencyKey: crypto.randomUUID(),
     },
     expectFinal: true,
-    timeoutMs: 60_000,
+    timeoutMs: 30_000,
   });
 }
 

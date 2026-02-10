@@ -43,6 +43,7 @@ function persistSubagentRuns() {
 }
 
 const resumedRuns = new Set<string>();
+const activeWaits = new Set<string>();
 
 function resumeSubagentRun(runId: string) {
   if (!runId || resumedRuns.has(runId)) {
@@ -320,6 +321,10 @@ export function registerSubagentRun(params: {
 }
 
 async function waitForSubagentCompletion(runId: string, waitTimeoutMs: number) {
+  if (activeWaits.has(runId)) {
+    return;
+  }
+  activeWaits.add(runId);
   try {
     const timeoutMs = Math.max(1, Math.floor(waitTimeoutMs));
     const wait = await callGateway<{
@@ -333,7 +338,7 @@ async function waitForSubagentCompletion(runId: string, waitTimeoutMs: number) {
         runId,
         timeoutMs,
       },
-      timeoutMs: timeoutMs + 10_000,
+      timeoutMs: timeoutMs + 3_000,
     });
     if (wait?.status !== "ok" && wait?.status !== "error") {
       return;
@@ -385,12 +390,15 @@ async function waitForSubagentCompletion(runId: string, waitTimeoutMs: number) {
     });
   } catch {
     // ignore
+  } finally {
+    activeWaits.delete(runId);
   }
 }
 
 export function resetSubagentRegistryForTests() {
   subagentRuns.clear();
   resumedRuns.clear();
+  activeWaits.clear();
   stopSweeper();
   restoreAttempted = false;
   if (listenerStop) {

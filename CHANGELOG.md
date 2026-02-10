@@ -24,6 +24,7 @@ Docs: https://docs.openclaw.ai
 - CLI: cache shell completion scripts in state dir and source cached files in profiles.
 - Zsh completion: escape option descriptions to avoid invalid option errors.
 - Agents: repair malformed tool calls and session transcripts. (#7473) Thanks @justinhuangcode.
+- Agents: fix subagent freeze issues - prevent duplicate waitForSubagentCompletion calls, fix announce queue re-scheduling race condition, reduce timeouts (agent.wait margin 10s→3s, announce RPC 60s→30s, session lock stale 30m→60s).
 - fix(agents): validate AbortSignal instances before calling AbortSignal.any() (#7277) (thanks @Elarwei001)
 - fix(webchat): respect user scroll position during streaming and refresh (#7226) (thanks @marcomarandiz)
 - Telegram: recover from grammY long-poll timed out errors. (#7466) Thanks @macmimi23.
@@ -32,6 +33,7 @@ Docs: https://docs.openclaw.ai
 - Security: require validated shared-secret auth before skipping device identity on gateway connect.
 - Security: guard skill installer downloads with SSRF checks (block private/localhost URLs).
 - Media understanding: apply SSRF guardrails to provider fetches; allow private baseUrl overrides explicitly.
+- Skills: add timeout and headless OAuth setup for google-calendar skill.
 - Tests: stub SSRF DNS pinning in web auto-reply + Gemini video coverage. (#6619) Thanks @joshp123.
 
 ## 2026.2.1

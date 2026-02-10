@@ -118,7 +118,7 @@ export async function acquireSessionWriteLock(params: {
 }> {
   registerCleanupHandlers();
   const timeoutMs = params.timeoutMs ?? 10_000;
-  const staleMs = params.staleMs ?? 30 * 60 * 1000;
+  const staleMs = params.staleMs ?? 60 * 1000; // 60s default, configurable via env
   const sessionFile = path.resolve(params.sessionFile);
   const sessionDir = path.dirname(sessionFile);
   await fs.mkdir(sessionDir, { recursive: true });

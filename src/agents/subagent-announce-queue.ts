@@ -157,7 +157,8 @@ function scheduleAnnounceDrain(key: string) {
       if (queue.items.length === 0 && queue.droppedCount === 0) {
         ANNOUNCE_QUEUES.delete(key);
       } else {
-        scheduleAnnounceDrain(key);
+        // Schedule re-drain in next event loop to avoid race conditions
+        setTimeout(() => scheduleAnnounceDrain(key), 0);
       }
     }
   })();
