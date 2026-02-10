@@ -444,7 +444,7 @@ export async function runSubagentAnnounceFlow(params: {
       "",
       "Summarize this naturally for the user. Keep it brief (1-2 sentences). Flow it into the conversation naturally.",
       "Do not mention technical details like tokens, stats, or that this was a background task.",
-      "You can respond with NO_REPLY if no announcement is needed (e.g., internal task with no user-facing result).",
+      "Always announce the result to the user — they are waiting for it.",
     ].join("\n");
 
     const queued = await maybeQueueSubagentAnnounce({
